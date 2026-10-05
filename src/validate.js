@@ -9,11 +9,11 @@
  *     类型是否正确、模型条目是否可用、思考档位声明是否自洽。
  *   - 它**不能**发现上游 llm-pi-ai 把某个字段改了名。判断某字段在当前 DSH
  *     版本里是否仍然有效，需要用 llm-pi-ai 真实的 schema 校验，那只能在
- *     能解析 DSH 应用包的进程里做——即 `npm run validate`（脚本在插件之外，
+ *     能解析 DSH 应用包的进程里做——即 `pnpm validate`（脚本在插件之外，
  *     按应用包绝对路径加载真实 schema）。插件运行在 DSH 内部，而 DSH 的包在
  *     profile 的 node_modules 里不可解析，因此运行时拿不到那个 schema。
  *
- * 两道校验的分工：本模块守「写对」，npm run validate 守「仍然有效」。
+ * 两道校验的分工：本模块守「写对」，pnpm validate 守「仍然有效」。
  */
 
 /**

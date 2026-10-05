@@ -181,7 +181,7 @@ npm 包（可被 dshmarket 分发）
 | 版本闸门 | `engines.dsh` 与 `dsh.compatibility` 声明只支持 DSH `0.2.0-rc.2`，版本不匹配时插件管理器直接拒绝安装 | ✅ 已落实 |
 | 分发渠道 | 独立 npm 包，`dsh.bundle.patch` 只插入本插件行、不携带任何 `llm-pi-ai` 配置，可由插件市场或 `dsh plugin add` 安装 | ✅ 已具备发布形态 |
 | 让静默失效变成响亮失败 | 插件启动时校验 provider 定义，不通过则让插件启动失败并给出补救指引 | ✅ 已落实（结构层面） |
-| 同上，对「上游字段改名」这一类 | 需要 `llm-pi-ai` 的真实 schema，而 DSH 的包在 profile 的 `node_modules` 里不可解析，插件运行时取不到 | ⚠️ 由 `npm run validate` 承担，建议接入 CI 或升级 DSH 后运行 |
+| 同上，对「上游字段改名」这一类 | 需要 `llm-pi-ai` 的真实 schema，而 DSH 的包在 profile 的 `node_modules` 里不可解析，插件运行时取不到 | ⚠️ 由 `pnpm validate` 承担，建议接入 CI 或升级 DSH 后运行 |
 
 ## 10. 与参考插件的剩余差距
 

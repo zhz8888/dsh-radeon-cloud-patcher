@@ -532,5 +532,5 @@ test/                         32 项合并与思考字段回归测试
 「上游把某个字段改了名」。原因是 DSH 的包在 profile 的 `node_modules` 里不可解析，
 插件运行时拿不到 `llm-pi-ai` 的真实 schema。
 
-那道校验由 `npm run validate` 承担（按应用包绝对路径加载真实 schema），
+那道校验由 `pnpm validate` 承担（按应用包绝对路径加载真实 schema），
 建议接入 CI，或在升级 DSH 之后手工运行一次。

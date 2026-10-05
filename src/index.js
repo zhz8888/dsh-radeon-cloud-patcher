@@ -19,7 +19,7 @@
  *
  * 写入为何不在启动时自动进行：provider 定义最终要落到 profile 的
  * cordis.patch.yml，而那正是用户自己维护的文件，插件在启动时写它存在与用户
- * 其它改动竞态的风险。因此写入是显式动作（npm run install:profile），
+ * 其它改动竞态的风险。因此写入是显式动作（pnpm install:profile），
  * 启动时只做只读校验。
  */
 import { readFileSync } from 'node:fs'
@@ -84,7 +84,7 @@ function remediation(problems) {
     '在当前 DSH 版本中已不存在或不叫这个名字。此时思考档位会静默失效，',
     '请核对目标 DSH 版本是否与 package.json 的 engines.dsh 一致。',
     '',
-    `provider 定义缺失时，可执行：npm run install:profile（写入前可先跑 npm run install:profile:dry）`,
+    `provider 定义缺失时，可执行：pnpm install:profile（写入前可先跑 pnpm install:profile:dry）`,
     `该命令会把定义按键合并进 profile 中 llm-pi-ai 的 providers.${PROVIDER_KEY}，`,
     '不会影响你在同一命名空间下自行添加的其它 provider。',
   ].join('\n')
@@ -115,7 +115,7 @@ export function apply(ctx) {
   ctx.logger.info(
     `dsh-radeon-cloud: provider 定义校验通过（${models} 个模型，端点 ${profile.baseURL}），` +
     `将交由 ${TARGET_ENTRY_ID} 承载。若模型设置页未出现 Radeon Cloud 一行，` +
-    '请执行 npm run install:profile 把定义写入 profile。',
+    '请执行 pnpm install:profile 把定义写入 profile。',
   )
 }
 

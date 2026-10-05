@@ -108,10 +108,10 @@ dsh plugin --profile <profile> add dsh-radeon-cloud-patcher
 
 ```bash
 # 先演练：会打印本次改动，以及被保留的其它 provider
-npm run install:profile:dry
+pnpm install:profile:dry
 
 # 确认无误后写入（自动备份，断言其余条目与同级键逐字未变）
-npm run install:profile
+pnpm install:profile
 ```
 
 输出示例：
@@ -220,17 +220,17 @@ dsh-radeon-cloud-patcher/
 
 ```bash
 # 全量测试（合并语义、冲突防护、思考字段取回）
-npm test
+pnpm test
 
 # 校验 provider 定义：结构校验 + llm-pi-ai 真实 schema 校验
 # 这是判断「字段在当前 DSH 版本里是否仍然有效」的那道校验，建议升级 DSH 后跑一次
-npm run validate
+pnpm validate
 
 # 演练合并进 profile，打印改动与被保留的其它 provider
-npm run install:profile:dry
+pnpm install:profile:dry
 
 # 重新实测某个模型支持的思考档位
-npm run probe -- --only Qwen3.8-27B
+pnpm probe --only Qwen3.8-27B
 
 # 拉取实时模型目录
 ./scripts/radeon-api.sh GET /models
@@ -257,7 +257,7 @@ npm run probe -- --only Qwen3.8-27B
 **GLM-5.3-Flash 与 Qwen3.8-27B 不支持 `none`**，因此没有关闭档位；其中 Qwen 系在「不传档位」时也会思考（AMD 服务端行为）。
 
 > **档位表不在 API 里**（`GET /v1/models` 不返回该信息），只能实测。模型上下架会导致此表过期，
-> 请用 `npm run probe` 复测后再更新 `provider/radeon-cloud.yml`。
+> 请用 `pnpm probe` 复测后再更新 `provider/radeon-cloud.yml`。
 >
 > `MinerU2.5-Pro` 未收录——它走独立的 `/v1/ocr` 端点，不是对话模型。
 

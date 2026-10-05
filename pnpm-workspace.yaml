@@ -1,0 +1,16 @@
+# 本项目是单包仓库，没有 workspace 子包；此文件仅为固定安装期构建脚本的策略。
+#
+# pnpm v10+ 默认拦截依赖的安装期构建脚本，并在拦截时以
+# ERR_PNPM_IGNORED_BUILDS 让 `pnpm install` 以非零码退出，
+# 从而打断 CI 与自动化脚本，因此这里必须显式表态。
+#
+# 本项目只需要 @deepseek-ai/* 这几个 peer 依赖的运行时产物。它们派生的
+# @google/genai 与 protobufjs 在发布 tarball 中并未携带构建脚本
+# （scripts/prepare.js 与 scripts/postinstall 均不存在），构建步骤对本项目无意义，
+# 故显式设为 false（拒绝执行）而不是 true（放行）。
+#
+# 若未来真的引入需要构建的依赖（如 esbuild），在此追加 `pkg: true` 即可，
+# 不要关闭这项保护。
+allowBuilds:
+  '@google/genai': false
+  protobufjs: false

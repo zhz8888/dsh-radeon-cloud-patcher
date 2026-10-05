@@ -308,7 +308,7 @@ DSH 的非 insert 补丁是整体替换，而用户通过设置界面添加的 p
 | `test/patch-text.test.mjs` | 17 | 文本级合并：用户 provider 与注释保留、条目顺序、块边界 |
 
 另有 `test/verify-reasoning.mjs` 的 7 项思考字段断言（见 §4.2）。
-`npm test` 一次跑完全部。
+`pnpm test` 一次跑完全部。
 
 ### 10.5 过程中修复的两个缺陷
 

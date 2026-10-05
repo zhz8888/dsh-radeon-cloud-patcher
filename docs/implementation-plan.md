@@ -314,11 +314,11 @@ pnpm test   # T6 场景的回归测试
 **明确不做的事**：插件不在启动时改写用户的 profile。provider 定义最终要落到
 用户自己维护的 `cordis.patch.yml`，插件在启动时写它存在与用户其它改动竞态的风险，
 而这一路径无法在本次开发中做集成验证。因此写入是显式动作
-（`npm run install:profile`），启动时只做只读校验。
+（`pnpm install:profile`），启动时只做只读校验。
 
 **已知能力边界**：启动时的结构校验能发现「配置写错」，发现不了「上游把字段改了名」
 ——后者需要 `llm-pi-ai` 的真实 schema，而 DSH 的包在 profile 的 `node_modules`
-里不可解析，插件运行时取不到。该校验由 `npm run validate` 承担，
+里不可解析，插件运行时取不到。该校验由 `pnpm validate` 承担，
 建议接入 CI 或升级 DSH 后运行。
 
 ---
