@@ -1,0 +1,64 @@
+{
+  "name": "dsh-radeon-cloud-patcher",
+  "version": "1.0.0",
+  "description": "为 DeepSeek Harness 接入 AMD Radeon Cloud，完整支持模型思考（reasoning）功能。把 provider 定义按键合并进 profile，由 DSH 自带的 dsh-llm-pi-ai 承载，不修改 DSH 本体，也不自研适配器。",
+  "keywords": [
+    "amd",
+    "deepseek-harness",
+    "dsh",
+    "llm",
+    "patcher",
+    "provider",
+    "radeon",
+    "radeon-cloud",
+    "reasoning",
+    "thinking"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./merge": "./src/merge.js",
+    "./provider": "./provider/radeon-cloud.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.plugin.patch.yml"
+    },
+    "compatibility": {
+      "dsh": "0.2.0-rc.2",
+      "dshReleases": {
+        "0.2.0-rc.2": "compatible"
+      }
+    }
+  },
+  "engines": {
+    "node": ">=22",
+    "dsh": "0.2.0-rc.2"
+  },
+  "files": [
+    "src",
+    "provider",
+    "scripts",
+    "cordis.plugin.patch.yml",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node test/merge.test.mjs && node test/patch-text.test.mjs && node test/verify-reasoning.mjs",
+    "test:merge": "node test/merge.test.mjs && node test/patch-text.test.mjs",
+    "test:reasoning": "node test/verify-reasoning.mjs",
+    "validate": "node scripts/validate-config.mjs",
+    "probe": "node scripts/probe-efforts.mjs",
+    "install:profile": "node scripts/apply-to-profile.mjs",
+    "install:profile:dry": "node scripts/apply-to-profile.mjs --dry-run"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/dsh-llm": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-llm-pi-ai": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-settings": "0.2.0-rc.2"
+  }
+}

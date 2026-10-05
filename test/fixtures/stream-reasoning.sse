@@ -1,0 +1,46 @@
+data: {"id":"0215191074e249688bfd7394d4ed054c","object":"chat.completion.chunk","created":1791118774,"model":"DeepSeek-V4.1-Flash","choices":[{"index":0,"delta":{"reasoning_content":null,"role":"assistant","content":""},"logprobs":null,"finish_reason":null,"matched_stop":null}]}
+id: 0
+
+data: {"id":"0215191074e249688bfd7394d4ed054c","object":"chat.completion.chunk","created":1791118774,"model":"DeepSeek-V4.1-Flash","choices":[{"index":0,"delta":{"role":"assistant","reasoning":"We"},"logprobs":null,"finish_reason":null,"matched_stop":null}]}
+id: 1
+
+data: {"id":"0215191074e249688bfd7394d4ed054c","object":"chat.completion.chunk","created":1791118774,"model":"DeepSeek-V4.1-Flash","choices":[{"index":0,"delta":{"role":"assistant","reasoning":" need"},"logprobs":null,"finish_reason":null,"matched_stop":null}]}
+id: 2
+
+data: {"id":"0215191074e249688bfd7394d4ed054c","object":"chat.completion.chunk","created":1791118774,"model":"DeepSeek-V4.1-Flash","choices":[{"index":0,"delta":{"role":"assistant","reasoning":" answer"},"logprobs":null,"finish_reason":null,"matched_stop":null}]}
+id: 3
+
+data: {"id":"0215191074e249688bfd7394d4ed054c","object":"chat.completion.chunk","created":1791118774,"model":"DeepSeek-V4.1-Flash","choices":[{"index":0,"delta":{"role":"assistant","reasoning":" simple"},"logprobs":null,"finish_reason":null,"matched_stop":null}]}
+id: 4
+
+data: {"id":"0215191074e249688bfd7394d4ed054c","object":"chat.completion.chunk","created":1791118774,"model":"DeepSeek-V4.1-Flash","choices":[{"index":0,"delta":{"role":"assistant","reasoning":"."},"logprobs":null,"finish_reason":null,"matched_stop":null}]}
+id: 5
+
+data: {"id":"0215191074e249688bfd7394d4ed054c","object":"chat.completion.chunk","created":1791118774,"model":"DeepSeek-V4.1-Flash","choices":[{"index":0,"delta":{"role":"assistant","reasoning":" Need"},"logprobs":null,"finish_reason":null,"matched_stop":null}]}
+id: 6
+
+data: {"id":"0215191074e249688bfd7394d4ed054c","object":"chat.completion.chunk","created":1791118774,"model":"DeepSeek-V4.1-Flash","choices":[{"index":0,"delta":{"role":"assistant","reasoning":" final"},"logprobs":null,"finish_reason":null,"matched_stop":null}]}
+id: 7
+
+data: {"id":"0215191074e249688bfd7394d4ed054c","object":"chat.completion.chunk","created":1791118774,"model":"DeepSeek-V4.1-Flash","choices":[{"index":0,"delta":{"role":"assistant","reasoning":" only"},"logprobs":null,"finish_reason":null,"matched_stop":null}]}
+id: 8
+
+data: {"id":"0215191074e249688bfd7394d4ed054c","object":"chat.completion.chunk","created":1791118774,"model":"DeepSeek-V4.1-Flash","choices":[{"index":0,"delta":{"role":"assistant","reasoning":"."},"logprobs":null,"finish_reason":null,"matched_stop":null}]}
+id: 9
+
+data: {"id":"0215191074e249688bfd7394d4ed054c","object":"chat.completion.chunk","created":1791118774,"model":"DeepSeek-V4.1-Flash","choices":[{"index":0,"delta":{"reasoning_content":null,"content":"4","role":"assistant"},"logprobs":null,"finish_reason":null,"matched_stop":null}]}
+id: 10
+
+data: {"id":"0215191074e249688bfd7394d4ed054c","object":"chat.completion.chunk","created":1791118774,"model":"DeepSeek-V4.1-Flash","choices":[{"index":0,"delta":{"reasoning_content":null,"role":"assistant"},"logprobs":null,"finish_reason":"stop","matched_stop":1}]}
+id: 11
+
+data: {"id":"0215191074e249688bfd7394d4ed054c","object":"chat.completion.chunk","created":1791118774,"model":"DeepSeek-V4.1-Flash","choices":[],"usage":{"prompt_tokens":34,"completion_tokens":12,"total_tokens":46,"reasoning_tokens":10,"prompt_tokens_details":{"cached_tokens":0}}}
+id: 12
+
+data: {"id":"chatcmpl-1791118775979","object":"chat.completion.chunk","created":1791118775,"model":"DeepSeek-V4.1-Flash","choices":[{"index":0,"delta":{},"finish_reason":null}],"usage":{"prompt_tokens":34,"completion_tokens":12,"total_tokens":56,"reasoning_tokens":10,"cost":0.00001092,"cost_details":{"upstream_inference_cost":0.00001092,"upstream_inference_prompt_cost":0.00000476,"upstream_inference_completions_cost":0.00000616,"total_cost":0.00001092,"input_cost":0.00000476,"output_cost":0.00000616,"cached_input_cost":0,"cache_write_input_cost":0,"request_cost":0,"web_search_cost":0,"image_input_cost":null,"image_output_cost":null,"audio_input_cost":null,"data_storage_cost":5.6e-7},"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0,"image_tokens":0},"completion_tokens_details":{"reasoning_tokens":10,"image_tokens":0,"audio_tokens":0}},"metadata":{"log_id":"tLS3fE5hbqKxtDdYvjkt","organization_id":"oneclick-org-16270","project_id":"oneclick-project-16270","discount":null}}
+id: 13
+
+event: done
+data: [DONE]
+id: 14
+

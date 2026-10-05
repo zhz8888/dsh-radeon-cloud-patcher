@@ -1,0 +1,23 @@
+# 本插件的 bundle 补丁层。
+#
+# 这里只插入本插件自己那一行，**不携带 llm-pi-ai 的任何配置**。
+#
+# 原因：DSH 的非 insert 补丁是整体替换而不是合并。若在这里写入
+# llm-pi-ai 的 config，用户在该命名空间下自行添加的其它 provider
+# 会被一并抹掉。provider 定义改由插件在启动时按键合并写入，
+# 只新增或覆盖 providers.radeon-cloud 这一个键。
+#
+# `name` 必须是 profile node_modules 里的完整包标识符；pnpm 按真实
+# （scoped）名链接，裸写包名会解析失败。必须加引号——YAML 中以 @ 开头的
+# 标量会被当作指令符解析。
+
+- insert:
+    - id: dsh-radeon-cloud-patcher
+      name: "dsh-radeon-cloud-patcher"
+      config:
+        # 自动写入 provider 定义。关闭后插件只做启动校验与看护，
+        # 不再改动 profile 文件，适合由使用者自行维护配置的场景。
+        autoProvision: true
+        # 启动时用 llm-pi-ai 的真实 schema 校验 provider 定义，
+        # 不通过则直接让插件启动失败，避免配置失效却无人察觉。
+        validateOnBoot: true
