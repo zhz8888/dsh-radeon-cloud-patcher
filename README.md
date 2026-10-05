@@ -10,7 +10,7 @@
 > provider 一并抹掉；因此写入被降到键的粒度，只动 `providers.radeon-cloud`。
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![DSH](https://img.shields.io/badge/target-DSH-0.2.0--rc.2-blue)
+![DSH](https://img.shields.io/badge/target-DSH-0.2.x-blue)
 ![Radeon Cloud](https://img.shields.io/badge/API-Radeon%20Cloud-orange)
 
 ---
@@ -98,8 +98,16 @@ dsh plugin --profile <profile> add dsh-radeon-cloud-patcher
 也可以直接编辑 profile 的 `package.json`，在 `dsh.profile.bundles` 中加入本包名，
 再执行 `dsh plugin --profile <profile> install`。
 
-> 本包通过 `engines.dsh` 与 `dsh.compatibility` 声明只支持 DSH `0.2.0-rc.2`。
-> 版本不匹配时 DSH 会**直接拒绝安装**，不会出现「装上了但思考功能失效」的情况。
+> 本包通过 `peerDependencies` 里的 `@deepseek-ai/dsh-*` 范围声明支持 DSH `0.2.x`
+> （含 `0.2.0-rc.1` 及之后的全部预发布与正式版）。DSH 安装器会把每个
+> `@deepseek-ai/dsh-*` peer 与当前运行时版本比对，**不匹配则直接拒绝安装**，
+> 不会出现「装上了但思考功能失效」的情况。
+>
+> 范围写成 `>=0.2.0-rc.1 <0.2.1-0 || >=0.2.1-0 <0.3.0-0` 的显式双分支，
+> 是为了同时满足 DSH 的闸门判定与 npm/pnpm 的 peer 解析：node-semver 只有当范围里
+> 某个比较符与该版本的 `major.minor.patch` 元组完全一致、且自身也带预发布标签时，
+> 才会放行预发布版本。单写 `>=0.2.0-rc.1 <0.3.0-0` 会把 `0.2.1-alpha.1` 这类
+> **不同元组**的预发布静默排除。
 
 ### 2. 写入 provider 定义
 

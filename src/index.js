@@ -10,8 +10,9 @@
  * 解析、多轮回传、用量计量，全部仍由 llm-pi-ai 承担。本插件只做四件事：
  *
  *   1. 分发：作为可被插件市场安装的 npm 包而存在；
- *   2. 版本闸门：engines.dsh / dsh.compatibility 声明目标 DSH 版本，
- *      不匹配时 DSH 直接拒绝安装；
+ *   2. 版本闸门：peerDependencies 里的 @deepseek-ai/dsh-* 范围声明目标 DSH
+ *      版本，DSH 安装器据此比对运行时版本，不匹配则直接拒绝安装
+ *      （engines.dsh 与 dsh.compatibility 是同样的声明，但闸门判定只读 peer）；
  *   3. 写入：把 provider 定义按键合并进 profile，写入前可演练、写入时断言
  *      其余条目与同级键逐字未变、失败自动备份；
  *   4. 看护：启动时校验 provider 定义，失效则让插件启动失败并给出
