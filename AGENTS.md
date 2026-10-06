@@ -103,6 +103,53 @@ pnpm install:profile      # 实际写入（自动备份，断言其余条目逐�
 
 改完代码至少跑 `pnpm test && pnpm validate`。`pnpm validate` 是唯一能发现「上游把字段改了名」的手段，**升级 DSH 后务必跑一次**。
 
+### 测试用自研 runner，不是 node:test
+
+`test/` 下三个文件都是手写的计数式 runner——逐项检查、累加失败数、结束时
+`if (failed > 0) process.exit(1)`。**项目没有引入任何测试框架**：
+
+```bash
+grep -rn "node:test\|node:assert" test/   # 无匹配
+```
+
+新增测试请沿用现有写法，不要引入 `node:test` 或断言库，否则与既有风格割裂，
+且 `pnpm test` 里的退出码约定会失效（CI 依赖非零退出表示失败）。
+
+两个离线测试（合并语义、文本级合并）不碰网络，可单独跑；`test/verify-reasoning.mjs`
+读 `test/fixtures/` 里的真实抓取流，同样离线。
+
+## 代码地图
+
+```
+src/index.js       插件入口：apply(ctx) 启动时校验，失效则抛错让插件启动失败
+src/merge.js       键级合并的纯函数（PROVIDER_KEY / TARGET_ENTRY_ID 在此定义）
+src/patch-text.js  文本级编辑：按行定位与替换，以保住用户注释、缩进与键序
+src/validate.js    provider 定义的结构校验（不依赖 DSH）
+src/yaml.js        定位 YAML 解析器，含回退路径
+provider/          radeon-cloud.yml —— 定义的唯一真源，无第二份副本
+```
+
+`patch-text.js` 的存在理由值得单说：DSH 补丁是整体替换，走序列化再写回会丢掉
+用户在该文件里的注释与格式。文本级编辑是"不破坏用户配置"这一卖点的实现基础，
+改它等于改这个卖点。
+
+### 改动 provider/radeon-cloud.yml 的正确流程
+
+模型的 `reasoningEfforts` 档位表**无法从 API 推断**——模型目录接口只返回 id、
+上下文与模态，不返回档位信息。档位只能逐模型实测：
+
+```bash
+pnpm probe --only Qwen3.8-27B   # 单模型实测
+pnpm probe                        # 全量实测
+./scripts/radeon-api.sh GET /models   # 只拉模型目录，不含档位
+```
+
+改完定义后跑 `pnpm validate` 确认 schema 合法。**不要凭模型名推测档位**——
+GLM 与 Qwen 系不支持关闭档位、某些模型不返回分离思考，这些都是实测结论
+（`MiniCPM5-2B` 的 `reasoningEfforts: false` 即表示非推理模型）。
+
+非推理模型写 `reasoningEfforts: false`，不是空对象，也不是省略。
+
 ## 实现约束
 
 ### 校验依赖 DSH 的真实 schema
