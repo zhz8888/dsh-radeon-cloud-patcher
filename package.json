@@ -1,6 +1,6 @@
 {
   "name": "@zhz8888/dsh-radeon-cloud-patcher",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "为 DeepSeek Harness 接入 AMD Radeon Cloud，完整支持模型思考（reasoning）功能。把 provider 定义按键合并进 profile，由 DSH 自带的 dsh-llm-pi-ai 承载，不修改 DSH 本体，也不自研适配器。",
   "keywords": [
     "amd",
