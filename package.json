@@ -78,7 +78,7 @@
     "install:profile:dry": "node scripts/apply-to-profile.mjs --dry-run"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/cordis": ">=4.0.2",
     "@deepseek-ai/dsh-llm": ">=0.2.0-rc.1",
     "@deepseek-ai/dsh-llm-pi-ai": ">=0.2.0-rc.1",
     "@deepseek-ai/dsh-settings": ">=0.2.0-rc.1"

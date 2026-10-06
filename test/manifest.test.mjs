@@ -46,8 +46,8 @@ check('每个 @deepseek-ai/dsh* peer 都是无上界的 >=0.2.0-rc.1',
 check('engines.dsh 与 peer 逐字一致', manifest.engines?.dsh === RANGE)
 check('dsh.compatibility.dsh 与 peer 逐字一致', manifest.dsh?.compatibility?.dsh === RANGE)
 check('范围里没有上界（不再需要为 DSH 升版本重发插件）', !RANGE.includes('<'))
-check('cordis 的范围保持原样（不参与闸门，放宽只会制造 peer 噪音）',
-  peers['@deepseek-ai/cordis'] === '^4.0.2')
+check('cordis 也是只有下界的 >=4.0.2（不参与闸门，但会卡 pnpm 的 peer 解析）',
+  peers['@deepseek-ai/cordis'] === '>=4.0.2')
 
 // ── 清单指向的文件必须存在，并且在 files 白名单里 ──
 /** 清单里指向包内文件的字段。 */
