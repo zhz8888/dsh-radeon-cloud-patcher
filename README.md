@@ -10,7 +10,7 @@
 > provider 一并抹掉；因此写入被降到键的粒度，只动 `providers.radeon-cloud`。
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![DSH](https://img.shields.io/badge/target-DSH-0.2.x-blue)
+![target: DSH](https://img.shields.io/badge/DSH-0.2.x-blue?label=target)
 ![Radeon Cloud](https://img.shields.io/badge/API-Radeon%20Cloud-orange)
 
 ---
