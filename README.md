@@ -30,8 +30,8 @@
    命令行执行
    `dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher`。
    装不上（pnpm 报 404）就改用[安装](#安装)里的方式三，从源码装同一个包。
-2. **重启 DSH** —— 定义写在补丁层的 config 行里，而插件市场的**热挂载只支持纯 insert 行**，
-   因此安装后市场会提示「重启后生效」，这一步不能省。重启后 provider 就位，没有其它后置步骤。
+2. **重启 DSH** —— 定义写在补丁层的 config 行里，插件管理器对这类变更只会给出
+   `restart-required`，不会在运行中生效。重启后 provider 就位，没有其它后置步骤。
 3. **填密钥** —— 左下角「账号菜单 → 设置 → 模型」，找到 **Radeon Cloud** 一行，
    点「编辑」，在「API 密钥」里粘贴密钥，点「保存」。
 
@@ -172,8 +172,9 @@ printf 'registry=https://registry.npmmirror.com\n' >> ~/.dsh/profiles/<profile>/
 dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher@<版本>
 ```
 
-> 本包的 tarball 里只有 JSON / YAML / JS，**没有安装期构建脚本**，
-> 因此换源、离线镜像、内网私服都不会碰到 pnpm 的 `allowBuilds` 授权那一步。
+> 本包的 tarball 里只有插件自己的源码、定义与脚本（不含 `test/` 与 `docs/`），
+> **没有安装期构建脚本**，因此换源、离线镜像、内网私服都不会碰到 pnpm 的
+> `allowBuilds` 授权那一步。
 
 ### 方式三：从源码 / GitHub 安装
 
@@ -281,7 +282,7 @@ RADEON_CLOUD_API_KEY=rc-你的密钥 dsh --profile <profile>
 
 对话输入框下方点模型选择器 → 选 Radeon Cloud 的模型 → 再选「推理等级」，
 那就是思考档位。档位按模型逐个声明（见[可用模型](#可用模型)）：
-GLM 与 Qwen 系不接受 `none`，因此没有关闭档位；`MiniCPM5-2B` 不是推理模型，
+GLM 不接受 `none`，因此没有关闭档位；`MiniCPM5-2B` 不是推理模型，
 不会出现档位下拉。选了服务端不接受的档位是**硬失败**（400 / 422），不会静默降级。
 
 ### 3. 图片输入
@@ -297,7 +298,7 @@ dsh plugin --profile <profile> remove @zhz8888/dsh-radeon-cloud-patcher      # �
 ```
 
 升级不需要额外动作：定义由插件层声明，装上新版本重启即生效
-（在市场里升级同样会提示「重启后生效」，原因与安装一致）。
+（在市场里升级同样要重启，原因与安装一致）。
 **卸载即删除供应商**——插件层消失，provider 与设置页那一行一起消失。
 
 > 例外：如果你曾用 `pnpm install:profile` 把定义合并进 profile（见[归属与删除](#归属与删除)），
@@ -336,7 +337,7 @@ dsh plugin --profile <profile> remove @zhz8888/dsh-radeon-cloud-patcher      # �
   **本 provider 那一行**的标签隐藏掉：
 
   ```css
-  li:has(button[aria-label*="(radeon-cloud)"]) span[class*="rowTag"] { display: none }
+  li:has(button[aria-label*="(radeon-cloud)"]) span[class*="rowTag"] { display: none !important }
   ```
 
   代价说清楚：它依赖 DSH 的 DOM 结构与类名片段，DSH 改版后可能静默失效——
@@ -354,6 +355,7 @@ DSH 的非 insert 补丁是**整体替换**：`llm-pi-ai` 的 config 只要在 p
 | profile 里有一份**与本插件一致**的同 id 声明 | 放行，并提示它会在卸载后残留（通常是你在设置页保存过一次、被物化出的副本） |
 | profile 里有一份**与之不一致**的同 id 声明 | **启动失败**：报「provider id 冲突」，并指名第一处差异字段 |
 | profile 给 `llm-pi-ai` 写了 config 却没有本 provider | **启动失败**：报「定义未生效」，并打印可直接执行的合并命令 |
+| 那一层的 config 是 `!!js` 表达式，或本次运行读不到 profile 目录 | 跳过判定并告警——静态判断不了，不等于失败；真正生效的是哪一份以 `dsh --profile <profile> --dump-config` 为准 |
 
 后两种是**失败 + 原因**，而不是静默接管或静默消失——这是本项目的取舍：id 冲突要响亮。
 处置方式（按键合并、`--force`、输出示例）见[已知限制](#6-与用户自有-provider-共存)。
@@ -385,7 +387,7 @@ dsh-radeon-cloud-patcher/
 │
 ├── src/                                       插件实现（薄壳，不含 provider 逻辑）
 │   ├── index.js                               插件入口：启动校验、所有权判定、收尾核验
-│   ├── ownership.js                           所有权判定的纯函数（四种结局与差异定位）
+│   ├── ownership.js                           所有权判定的纯函数（四种归属结局 + dynamic 哨兵、差异定位）
 │   ├── merge.js                               键级合并的纯函数（补救路径使用）
 │   ├── patch-text.js                          文本级合并，保留用户注释与格式
 │   ├── validate.js                            定义的结构校验
@@ -398,16 +400,11 @@ dsh-radeon-cloud-patcher/
 │   ├── probe-efforts.mjs                      实测逐模型 reasoning_effort 档位表
 │   └── radeon-api.sh                          API 调用助手（密钥取自环境变量或凭据存储）
 │
-├── test/                                      离线测试
-│   ├── merge.test.mjs                         合并语义与幂等性
-│   ├── patch-text.test.mjs                    不破坏用户 provider 与注释
-│   ├── ownership.test.mjs                     四种所有权结局与差异定位
-│   ├── apply-guard.test.mjs                   启动看护：放行、或失败并说明原因
-│   ├── patch-sync.test.mjs                    补丁与定义真源一致、结构符合「无删除按钮」
-│   ├── client-patch.test.mjs                  客户端补丁注入的规则
+├── test/                                      离线测试（自研 runner，无测试框架）
+│   ├── *.test.mjs                             清单不变式、合并语义、文本级编辑、
+│   │                                          所有权判定、启动看护、补丁与客户端一致性
 │   ├── verify-reasoning.mjs                   思考文本取回的回归测试
-│   └── fixtures/
-│       └── stream-reasoning.sse               实测抓取的真实流
+│   └── fixtures/stream-reasoning.sse          实测抓取的真实流
 │
 └── docs/                                      技术文档
     └── market-submission.md                   插件市场投稿与 npm 发布说明
@@ -426,7 +423,7 @@ dsh-radeon-cloud-patcher/
 # 全量测试（合并语义、所有权判定、启动看护、补丁一致性、思考字段取回）
 pnpm test
 
-# 只跑启动看护（四种所有权结局）与补丁一致性
+# 只跑启动看护（四种归属结局 + dynamic 跳过）与补丁一致性
 pnpm test:guard
 pnpm test:patch
 
@@ -465,7 +462,7 @@ pnpm probe --only Qwen3.8-27B
 | MiniCPM5-2B | 131,072 | ❌ | （不返回分离思考，故不提供档位） |
 
 `off` 表示发送 `reasoning_effort: "none"` 关闭思考。
-**GLM-5.3-Flash 与 Qwen3.8-27B 不支持 `none`**，因此没有关闭档位；其中 Qwen 系在「不传档位」时也会思考（AMD 服务端行为）。
+**GLM-5.3-Flash 不接受 `none`**，因此没有关闭档位；Qwen 系靠 `none` 关闭，而**不传档位时仍会思考**（AMD 服务端行为）。
 
 > **档位表不在 API 里**（`GET /v1/models` 不返回该信息），只能实测。模型上下架会导致此表过期，
 > 请用 `pnpm probe` 复测后再更新 `provider/radeon-cloud.yml`。
@@ -554,11 +551,9 @@ node ~/.dsh/profiles/<profile>/node_modules/@zhz8888/dsh-radeon-cloud-patcher/sc
 ## 兼容性
 
 - 目标 DSH 版本：`>=0.2.0-rc.1`，**无上界**（三处声明一致，见[版本闸门](#版本闸门)）
-- 模型目录与档位表采集日期：**2026-10-04**
-- 收录的模型当前均为 `stability: experimental`
+- 收录的模型当前均为 `stability: experimental`——上游接口行为可能变，档位失效时先复测
 - 仅覆盖 Public Free Model APIs（共享端点）；独占端点的基础 URL 每次实例重启都会变化，不在本项目范围内
-- 客户端补丁依赖 DSH 模型设置页的 DOM 结构（`aria-label` 中的 provider 路由名 + `rowTag` 类名片段）。
-  DSH 改版后它会静默失效——「自定义」标签重新出现，功能不受影响
+- 客户端补丁依赖 DSH 的 DOM 结构，DSH 改版后可能静默失效（机制与代价见[归属与删除](#归属与删除)）
 
 ---
 

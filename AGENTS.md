@@ -49,7 +49,7 @@ removable = settingsPath.length > 0 && hasPath(namespace.user, path) && !hasPath
 代价与配套：
 
 - 定义在补丁文件里只能是文本副本，真源仍是 `provider/radeon-cloud.yml`，靠 `scripts/sync-bundle-patch.mjs` 渲染、`test/patch-sync.test.mjs` 断言一致——**改完真源必须跑 `pnpm sync:patch`**；
-- profile 里一旦出现 `llm-pi-ai` 的 config（用户自己加过 provider），插件层会被整份盖掉。`src/index.js` 启动时静态读 profile / home / overlay 三层判定，`src/ownership.js` 给出四种结局：`plugin-layer`（正常）、`materialized`（同 id 且与本插件一致，视为设置页物化的副本，放行）、`shadowed`（被盖掉 → 启动失败 + 合并命令）、`conflict`（同 id 但不一致 → 启动失败 + 第一处差异）；
+- profile 里一旦出现 `llm-pi-ai` 的 config（用户自己加过 provider），插件层会被整份盖掉。`src/index.js` 启动时静态读 profile / home / overlay 三层判定，`src/ownership.js` 给出四种归属结局：`plugin-layer`（正常）、`materialized`（同 id 且与本插件一致，视为设置页物化的副本，放行）、`shadowed`（被盖掉 → 启动失败 + 合并命令）、`conflict`（同 id 但不一致 → 启动失败 + 第一处差异），另有哨兵 `dynamic`（config 是 `!!js` 表达式、或本次运行拿不到 profile 目录时跳过判定，只告警）；
 - 判定之所以是「一致即放行」而不是「有声明就失败」：设置页每保存一次都会把有效配置物化进用户层（录入 API Key 也会），严格判定会让插件在用户正常操作后无法启动；
 - `scripts/apply-to-profile.mjs` 是补救路径（`shadowed` 时把定义按键合并进 profile），它同样拒绝覆盖不一致的同 id 定义，除非 `--force`。
 
@@ -140,7 +140,7 @@ dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher \
 pnpm test                 # 全量：清单不变式 / 合并语义 / 文本级合并 / 所有权判定 / 启动看护 / 补丁一致性 / 思考取回
 pnpm test:manifest        # 三处 DSH 版本声明一致、无上界、清单指向的文件都存在
 pnpm test:merge           # 合并语义 + 文本级合并 + 所有权判定（离线、不碰 DSH 运行时）
-pnpm test:guard           # 启动看护的四种结局
+pnpm test:guard           # 启动看护的四种归属结局 + dynamic 跳过
 pnpm test:patch           # 补丁与定义真源一致 + 客户端补丁注入的规则
 pnpm test:reasoning       # 仅思考字段取回
 pnpm sync:patch           # 把 provider/radeon-cloud.yml 同步进补丁的生成区块
@@ -172,7 +172,7 @@ grep -rn "node:test\|node:assert" test/   # 无匹配
 
 ```
 src/index.js       插件入口：启动校验、所有权判定、收尾核验路由是否注册
-src/ownership.js   所有权判定的纯函数（四种结局、差异定位、子集比较）
+src/ownership.js   所有权判定的纯函数（四种归属结局 + dynamic 哨兵、差异定位、子集比较）
 src/merge.js       键级合并的纯函数（补救路径使用；PROVIDER_KEY / TARGET_ENTRY_ID 在此定义）
 src/patch-text.js  文本级编辑：按行定位与替换，以保住用户注释、缩进与键序
 src/validate.js    provider 定义的结构校验（不依赖 DSH）
@@ -201,7 +201,7 @@ pnpm probe                        # 全量实测
 改完定义后跑 `pnpm validate` 确认 schema 合法，**再跑 `pnpm sync:patch` 把定义同步进
 `cordis.plugin.patch.yml` 的生成区块**（忘了这一步，装上去的还是旧定义；
 `pnpm test:patch` 会拦住这种漂移）。**不要凭模型名推测档位**——
-GLM 与 Qwen 系不支持关闭档位、某些模型不返回分离思考，这些都是实测结论
+GLM 不接受 `none`（所以它没有关闭档位；Qwen 系反过来，靠 `none` 关闭，不传档位时仍会思考）、某些模型不返回分离思考，这些都是实测结论
 （`MiniCPM5-2B` 的 `reasoningEfforts: false` 即表示非推理模型）。
 
 非推理模型写 `reasoningEfforts: false`，不是空对象，也不是省略。

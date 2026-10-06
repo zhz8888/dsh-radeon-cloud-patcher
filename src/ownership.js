@@ -6,7 +6,7 @@
  * home 的 ~/.dsh/cordis.patch.yml、命令行 overlay 都排在 bundle 层之后，
  * 因此其中任何一条针对 llm-pi-ai 的 config 都会把插件层的定义整份盖掉。
  *
- * 三种结局必须被区分开，否则用户只会看到 provider 无声消失：
+ * 四种归属结局必须被区分开，否则用户只会看到 provider 无声消失：
  *
  *   plugin-layer  之后各层没碰 llm-pi-ai → 插件层的定义生效，一切正常；
  *   materialized  之后的层声明了同 id 定义，且与本插件定义一致 —— 这是设置页
@@ -16,12 +16,15 @@
  *   conflict      之后的层声明了同 id 定义但与本插件不一致 —— 用户自己维护了
  *                 一份同名 provider，插件拒绝接管（这是需求里的「id 冲突」）。
  *
+ * 另有哨兵 dynamic：config 是 !!js 表达式、或本次运行拿不到 profile 目录时，
+ * 静态判断不了谁生效，此时只告警并照常加载——「判不了」不等于「失败」。
+ *
  * 与 merge.js 的关系：merge.js 负责「把定义按键合并进 profile」这条补救路径，
  * 本模块负责「启动时判断谁在管理这个 id」。两者共用同一个 PROVIDER_KEY。
  */
 import { PROVIDER_KEY, TARGET_ENTRY_ID, deepEqual } from './merge.js'
 
-/** 所有权判定的四种结局。 */
+/** 所有权判定的四种归属结局，外加「判不了就跳过」的哨兵 dynamic。 */
 export const OWNERSHIP = {
   pluginLayer: 'plugin-layer',
   materialized: 'materialized',
