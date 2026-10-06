@@ -82,67 +82,32 @@ launcher 按这个路径读取，因此补丁文件叫什么名字都能装。
 
 ## 两个容易踩的 DSH 规则
 
-这两条不在贡献指南里，但直接决定插件能不能装。
+这两条不在贡献指南里，但直接决定插件能不能装。**判定机制的代码依据写在
+[`AGENTS.md`](../AGENTS.md) 的「版本闸门」一节**，这里只留投稿侧要照做的结论。
 
 ### 一、版本闸门只读 `peerDependencies`，不读 `engines.dsh`
 
-DSH 官方文档说 `engines.dsh` 是「作者声明的兼容版本」，并在「已知限制」里写明
-**当前安装器和加载器不强制检查**它。
+- `@deepseek-ai/*` 官方包必须写进 `peerDependencies`——装不装得上由它判定。
+  `engines.dsh` 与 `dsh.compatibility` 只是给人看的声明，但三处要保持一致
+  （本仓库由 `pnpm test:manifest` 断言）。
+- 判定只看 `@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-*`；`@deepseek-ai/cordis` 会被跳过，
+  但它仍要写在 `peerDependencies` 里（插件运行时确实 import 它），范围同样只取下界
+  `>=4.0.2`——写死上界会在 cordis 升大版本时把用户的安装卡住。
+- 不匹配是**硬拒装**（`rejected(preflight, "nothing was installed")`），一个包都不装，
+  所以别声明自己都满足不了的范围。
 
-实际执行闸门判定的是这段代码（`@deepseek-ai/dsh-app-boot`）：
+### 二、peer 范围的形态：只有下界
 
-```js
-// evaluatePluginCompatibility()
-if (!Object.hasOwn(fields, "peerDependencies")) return void 0;
-for (const [name, range] of Object.entries(dependencies)) {
-  if (name !== "@deepseek-ai/dsh" && !name.startsWith("@deepseek-ai/dsh-")) continue;
-  ...
-  if (!semver.satisfies(runtimeVersion, requirement, { includePrerelease: true })) peers[name] = range;
-}
-```
+本包取 `>=0.2.0-rc.1` 这种**只有下界**的形态：不写上界，就不必在 DSH 每升一个大版本时
+重发插件放宽范围。代价是一处 semver 细节——`>=0.2.0-rc.1` 只覆盖 `0.2.0` 这一元组的
+预发布，新元组的预发布（`0.2.1-alpha.1`、`0.3.0-beta.1`…）在 npm/pnpm 的默认规则下
+不被放行，而 DSH 自己的闸门（带 `includePrerelease`）会放行：**两者不一致时失败的是
+pnpm**，用户看到的是 `ERESOLVE`。
 
-推论有三条：
-
-1. **只有 `@deepseek-ai/dsh` 和 `@deepseek-ai/dsh-*` 开头的 peer 参与判定。**
-   `@deepseek-ai/cordis` 会被 `continue` 跳过——给它放宽版本不会影响闸门。
-   但**它仍要写在 `peerDependencies` 里**（插件运行时确实 import 它），范围同样只有下界：
-   `>=4.0.2`。它卡的不是闸门，而是 pnpm 的 peer 解析——写死上界会在 cordis 升大版本时
-   把安装卡住，用户只能手动绕过。
-2. **判定基准是 DSH 运行时版本**，不是各个包各自的版本。
-   peer 里写 cordis 的版本号，对闸门毫无作用。
-3. **不匹配是硬拒装**，不是警告：
-   ```js
-   if (preflight.length > 0) return rejected(preflight, "nothing was installed");
-   ```
-   安装器会中止，一个包都不装。
-
-`engines.dsh` 与 `dsh.compatibility` 仍建议写——它们是给人看的声明——
-但**放宽兼容范围时，要改的是 `peerDependencies`**。
-
-### 二、peer 范围的形态：预发布与上界
-
-本包取的是**只有下界**的形态：
-
-```json
-"@deepseek-ai/dsh-llm": ">=0.2.0-rc.1"
-```
-
-理由是不写上界就不必在 DSH 每升一个大版本时重发插件放宽范围。代价要清楚：
-node-semver 规定，只有范围里存在「元组相同、且自身也带预发布标签」的比较符时，
-该预发布才被放行——所以 `>=0.2.0-rc.1` 覆盖 `0.2.0` 元组的预发布，
-却漏掉新元组的预发布，而且**两条路径的判定并不一致**：
-
-| 运行时版本 | DSH 闸门（`includePrerelease: true`） | npm/pnpm 默认规则 |
-| --- | --- | --- |
-| `0.2.0-rc.2`、`0.2.0`、`0.2.1`、`0.3.0`、`1.0.0` | ✅ | ✅ |
-| `0.2.1-alpha.1`、`0.3.0-beta.1` 等新元组的预发布 | ✅ | ❌ |
-
-漏掉的后果不是报错的版本号，而是用户遇到 `ERESOLVE`，得自己手工绕过。
 真需要覆盖某个元组的预发布时，给该元组补一条分支即可
 （例如到 `0.2.1`：「`>=0.2.0-rc.1 <0.2.1-0 || >=0.2.1-0`」；
-上限写 `<0.2.1-0` 而非 `<0.2.1`，这样 `0.2.1` 本身仍在范围内）。
-
-也可以让用户端绕过：`dsh plugin --profile <profile> add <包名> --config.strict-peer-dependencies=false`
+上限写 `<0.2.1-0` 而非 `<0.2.1`，这样 `0.2.1` 本身仍在范围内），
+或让用户端绕过：`dsh plugin --profile <profile> add <包名> --config.strict-peer-dependencies=false`
 （`dsh plugin` 的参数原样转发给 pnpm）。
 
 ---
@@ -218,76 +183,15 @@ dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher   # README 
 - **scoped 包默认私有**：漏掉 `--access public` 会以失败告终；也可以在 `package.json` 里加
   `"publishConfig": { "access": "public" }` 一劳永逸。
 - **版本号不可重发**：同一版本发布过即永久占用。发布前确认 `package.json` 的 `version` 与
-  git tag 对齐（本次为 `1.2.0` / `v1.2.0`）。
+  git tag 对齐（发完可用 `git rev-parse <tag>^{commit}` 与 `npm view <包名>@<版本> gitHead` 核对）。
+- **发错号就发下一个版本，别删掉重发**：`unpublish` 后再 `publish` 复用同一个版本号是 npm
+  明令禁止的；删掉某个版本只会让 `latest` 被重算成剩余版本里最大的那个，那个号也再回不来。
 - **CI 里发布**用粒度访问令牌，不要用账号口令：
 
   ```bash
   NODE_AUTH_TOKEN=npm_xxx npm publish --registry https://registry.npmjs.org --access public
   # 或写进 ~/.npmrc：//registry.npmjs.org/:_authToken=npm_xxx
   ```
-
-#### 补发历史版本（可选）
-
-npm 没有「git tag」这个概念，它只有**版本号**与 **dist-tag**（`latest` 等）。本仓库的四个 tag
-与各自 `package.json` 的身份如下——**发布用的是 `package.json` 里的 `name`**，不是你想发到哪个
-包名下：
-
-| git tag | tag 里的 `name` | `version` | 能否发成 `@zhz8888/dsh-radeon-cloud-patcher` |
-| --- | --- | --- | --- |
-| `v1.0.0` | `dsh-radeon-cloud-patcher`（无作用域） | `1.0.0` | ❌ 名字不同，发布只会创建那个**无作用域**的包 |
-| `v1.1.0` | `@zhz8888/dsh-radeon-cloud-patcher` | `1.1.0` | ✅ |
-| `v1.1.1` | 同上 | `1.1.1` | ✅ |
-| `v1.2.0` | 同上 | `1.2.0` | ✅ |
-
-所以历史版本里只有 1.1.0 / 1.1.1 能补发；**`v1.0.0` 建议跳过**（它属于另一次改名前的身份，
-发上去会多出一个同名的无作用域包，反而让人以为有两个插件）。
-
-补发不需要在工作树里装依赖（没有 `prepare`/`prepublishOnly` 脚本），用 worktree 从 tag 发即可：
-
-```bash
-git worktree add /tmp/pub-111 v1.1.1
-(cd /tmp/pub-111 && npm publish --registry https://registry.npmjs.org --access public)
-git worktree remove /tmp/pub-111
-```
-
-**补发会把 `latest` 拽回旧版本**——`libnpmpublish/lib/publish.js` 里就两行，没有任何版本比较：
-
-```js
-const tag = manifest.tag || defaultTag        // defaultTag 默认就是 'latest'
-root['dist-tags'][tag] = manifest.version     // 无条件覆盖
-```
-
-所以补发 1.1.0 会把 `latest` 指到 1.1.0，接着补 1.1.1 又指到 1.1.1。**而这个坑不能靠「最后再发一次
-1.2.0」挽回**——1.2.0 已经发布过，npm 不允许重发同一个版本号。
-
-**「先补发旧版本、再把 1.2.0 删掉重发」也不通**：npm 官方文档写得很直白——
-「`package-name@version` 是唯一的，**不能靠 unpublish 再 publish 复用**；
-建议改为发一个 minor 版本」（[Unpublishing packages from the registry](https://docs.npmjs.com/unpublishing-packages-from-the-registry)）。
-删掉 1.2.0 只会让 `latest` 被重算成剩余版本里最大的那个（也就是 1.1.1），
-而 1.2.0 再也发不回来，最后还是得发 1.2.1——绕一圈回到原点，中间还多出一段
-「pin 了 1.2.0 的人拿到 404」的窗口。（若把整个包删掉，另有 24 小时内不能发布任何新版本的惩罚。）
-
-`latest` 一旦被拽回旧版本，
-`npm install @zhz8888/dsh-radeon-cloud-patcher`（以及 README 里的「方式一」、DSH 市场的默认入口）
-都会装到旧版；只有显式写版本号（`@1.2.0`、`@^1.2.0`）不受影响。
-
-两条稳妥的路：
-
-```bash
-# ① 最稳：给补发单独一个 tag，latest 全程不动
-npm publish --tag backfill --registry https://registry.npmjs.org --access public
-npm dist-tag rm @zhz8888/dsh-radeon-cloud-patcher backfill --registry https://registry.npmjs.org
-
-# ② 或者补发完立刻校正回来（两者之间有个几分钟的窗口，期间 latest 指向旧版）
-npm dist-tag add @zhz8888/dsh-radeon-cloud-patcher@1.2.0 latest --registry https://registry.npmjs.org
-npm dist-tag ls @zhz8888/dsh-radeon-cloud-patcher --registry https://registry.npmjs.org
-```
-
-用 staged publishing 时把 `--tag backfill` 一并传给 `npm stage publish`。
-
-> 删版本是另一套规则：`libnpmpublish/lib/unpublish.js` 在删除的版本正好是 `latest` 时，
-> 会把 `latest` 重算成**剩余版本里最大的那个**（`sort(semver.compareLoose).pop()`）。
-> 因此清理那个 `0.0.0-stage` 占位版本不会碰到 `latest`——它本来就不是 `latest`。
 
 #### 用 gitHead 核对「npm 版本 ↔ git tag」
 
