@@ -278,8 +278,12 @@ Conventional Commits：type 与 scope 用英文，subject 与 body 用中文。*
 
 ## 发版
 
-发布前确认目标 registry：npm 可能被全局 `registry` 配置指向镜像源，
-发布前显式指定官方源，避免误发到非预期源。
+1. 版本号与文档同步后提交，再打 tag（本仓库历史用轻量 tag，指向「版本号升至 X.Y.Z」那条提交）。
+2. 创建 GitHub Release 时，说明按前几个 Release 的写法组织：中文、讲清「为什么」、
+   末尾附「无功能变更」与升级命令。
+3. 发布到 npm 前确认目标 registry：npm 可能被全局 `registry` 配置指向镜像源，
+   发布前显式指定官方源，避免误发到非预期源。手动步骤与踩坑点见
+   [`docs/market-submission.md`](docs/market-submission.md) 的「发布到 npm」。
 
 ## 不要做的事
 

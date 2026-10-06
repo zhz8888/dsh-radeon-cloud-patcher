@@ -155,6 +155,150 @@ node-semver 规定，只有范围里存在「元组相同、且自身也带预�
 收录的那个仓库，否则两者不关联。映射由上游自动从 registry 采集，
 **不要在条目里手写 `npm:` 键**，会被校验拒绝。
 
+#### 手动发布步骤
+
+**前提：本机 npm 的默认源是镜像**（`npm config get registry` 会打印
+`https://registry.npmmirror.com`），而**镜像只读、不能发布**。所以下面每条命令都显式带官方源；
+更省事的做法是只给这个 scope 固定官方源，其余包继续走镜像：
+
+```bash
+npm config set @zhz8888:registry https://registry.npmjs.org
+```
+
+**① 发布前自查**（仓库根目录）：
+
+```bash
+pnpm test && pnpm validate   # 112 项检查 + 用 llm-pi-ai 真实 schema 校验定义
+pnpm test:manifest           # 三处 DSH 版本声明一致、files 白名单覆盖所有清单指向的文件
+npm pack --dry-run --registry https://registry.npmjs.org   # 打印真会传上去的文件清单
+```
+
+`files` 白名单决定包里有什么：`src/ client/ provider/ scripts/ cordis.plugin.patch.yml
+LICENSE README.md`——**不含** `test/` 与 `docs/`，这是有意的（用户只需要能跑的代码与说明）。
+1.2.0 实测为 17 个文件。
+
+> 若自查时报 `EPERM … /Users/zhz/.npm/_cacache/tmp/***` 并附一句「Your cache folder contains
+> root-owned files」：**那是 npm 的误报**。本机 `~/.npm` 下没有任何 root 属主文件
+> （`find ~/.npm ! -user "$(id -un)"` 为空），真实原因是运行环境不允许写 `~/.npm`
+> ——例如在受限沙箱里执行。换一个可写的缓存目录即可，不要照 npm 的提示去 `sudo chown`：
+>
+> ```bash
+> npm pack --dry-run --cache /tmp/npm-cache --registry https://registry.npmjs.org
+> ```
+
+**② 登录官方源**（本机当前未登录；只需一次）：
+
+```bash
+npm login --registry https://registry.npmjs.org     # 走浏览器授权
+npm whoami --registry https://registry.npmjs.org    # 应打印你的 npm 用户名
+```
+
+**③ 发布**：
+
+```bash
+npm publish --registry https://registry.npmjs.org --access public
+
+# 开了两步验证时追加一次性口令
+npm publish --registry https://registry.npmjs.org --access public --otp=123456
+```
+
+**④ 发布后核对**：
+
+```bash
+npm view @zhz8888/dsh-radeon-cloud-patcher version dist.tarball --registry https://registry.npmjs.org
+dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher   # README 的方式一现在可用
+```
+
+#### 四个容易踩的点
+
+- **scope 必须先归你**：`@zhz8888` 能发布的前提是 npm 用户名就是 `zhz8888`（与用户名同名的
+  scope 自动归该账号）。若 `npm whoami` 打印的是别的名字，`publish` 会 403——先在 npm 上建
+  同名组织，或改用自己用户名下的 scope（改包名要连带改补丁的 `name`、`export const name`、
+  客户端模块的 `id` 与 README，清单见 `AGENTS.md`）。
+- **scoped 包默认私有**：漏掉 `--access public` 会以失败告终；也可以在 `package.json` 里加
+  `"publishConfig": { "access": "public" }` 一劳永逸。
+- **版本号不可重发**：同一版本发布过即永久占用。发布前确认 `package.json` 的 `version` 与
+  git tag 对齐（本次为 `1.2.0` / `v1.2.0`）。
+- **CI 里发布**用粒度访问令牌，不要用账号口令：
+
+  ```bash
+  NODE_AUTH_TOKEN=npm_xxx npm publish --registry https://registry.npmjs.org --access public
+  # 或写进 ~/.npmrc：//registry.npmjs.org/:_authToken=npm_xxx
+  ```
+
+#### 补发历史版本（可选）
+
+npm 没有「git tag」这个概念，它只有**版本号**与 **dist-tag**（`latest` 等）。本仓库的四个 tag
+与各自 `package.json` 的身份如下——**发布用的是 `package.json` 里的 `name`**，不是你想发到哪个
+包名下：
+
+| git tag | tag 里的 `name` | `version` | 能否发成 `@zhz8888/dsh-radeon-cloud-patcher` |
+| --- | --- | --- | --- |
+| `v1.0.0` | `dsh-radeon-cloud-patcher`（无作用域） | `1.0.0` | ❌ 名字不同，发布只会创建那个**无作用域**的包 |
+| `v1.1.0` | `@zhz8888/dsh-radeon-cloud-patcher` | `1.1.0` | ✅ |
+| `v1.1.1` | 同上 | `1.1.1` | ✅ |
+| `v1.2.0` | 同上 | `1.2.0` | ✅ |
+
+所以历史版本里只有 1.1.0 / 1.1.1 能补发；**`v1.0.0` 建议跳过**（它属于另一次改名前的身份，
+发上去会多出一个同名的无作用域包，反而让人以为有两个插件）。
+
+补发不需要在工作树里装依赖（没有 `prepare`/`prepublishOnly` 脚本），用 worktree 从 tag 发即可：
+
+```bash
+git worktree add /tmp/pub-111 v1.1.1
+(cd /tmp/pub-111 && npm publish --registry https://registry.npmjs.org --access public)
+git worktree remove /tmp/pub-111
+```
+
+**补发会把 `latest` 拽回旧版本**——`libnpmpublish/lib/publish.js` 里就两行，没有任何版本比较：
+
+```js
+const tag = manifest.tag || defaultTag        // defaultTag 默认就是 'latest'
+root['dist-tags'][tag] = manifest.version     // 无条件覆盖
+```
+
+所以补发 1.1.0 会把 `latest` 指到 1.1.0，接着补 1.1.1 又指到 1.1.1。**而这个坑不能靠「最后再发一次
+1.2.0」挽回**——1.2.0 已经发布过，npm 不允许重发同一个版本号。
+
+**「先补发旧版本、再把 1.2.0 删掉重发」也不通**：npm 官方文档写得很直白——
+「`package-name@version` 是唯一的，**不能靠 unpublish 再 publish 复用**；
+建议改为发一个 minor 版本」（[Unpublishing packages from the registry](https://docs.npmjs.com/unpublishing-packages-from-the-registry)）。
+删掉 1.2.0 只会让 `latest` 被重算成剩余版本里最大的那个（也就是 1.1.1），
+而 1.2.0 再也发不回来，最后还是得发 1.2.1——绕一圈回到原点，中间还多出一段
+「pin 了 1.2.0 的人拿到 404」的窗口。（若把整个包删掉，另有 24 小时内不能发布任何新版本的惩罚。）
+
+`latest` 一旦被拽回旧版本，
+`npm install @zhz8888/dsh-radeon-cloud-patcher`（以及 README 里的「方式一」、DSH 市场的默认入口）
+都会装到旧版；只有显式写版本号（`@1.2.0`、`@^1.2.0`）不受影响。
+
+两条稳妥的路：
+
+```bash
+# ① 最稳：给补发单独一个 tag，latest 全程不动
+npm publish --tag backfill --registry https://registry.npmjs.org --access public
+npm dist-tag rm @zhz8888/dsh-radeon-cloud-patcher backfill --registry https://registry.npmjs.org
+
+# ② 或者补发完立刻校正回来（两者之间有个几分钟的窗口，期间 latest 指向旧版）
+npm dist-tag add @zhz8888/dsh-radeon-cloud-patcher@1.2.0 latest --registry https://registry.npmjs.org
+npm dist-tag ls @zhz8888/dsh-radeon-cloud-patcher --registry https://registry.npmjs.org
+```
+
+用 staged publishing 时把 `--tag backfill` 一并传给 `npm stage publish`。
+
+> 删版本是另一套规则：`libnpmpublish/lib/unpublish.js` 在删除的版本正好是 `latest` 时，
+> 会把 `latest` 重算成**剩余版本里最大的那个**（`sort(semver.compareLoose).pop()`）。
+> 因此清理那个 `0.0.0-stage` 占位版本不会碰到 `latest`——它本来就不是 `latest`。
+
+#### 用 gitHead 核对「npm 版本 ↔ git tag」
+
+npm 会把它发布时 HEAD 的提交 SHA 记在版本的 `gitHead` 里，这正是把 npm 版本与 git tag 对齐的
+凭据：
+
+```bash
+npm view @zhz8888/dsh-radeon-cloud-patcher@1.2.0 gitHead --registry https://registry.npmjs.org
+git rev-parse v1.2.0^{commit}        # 两者应完全一致
+```
+
 ### GitHub Release tarball
 
 不发 npm 的话，把预构建 tarball 挂到 Release，条目里加 `tarball:` 字段，
