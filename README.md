@@ -410,12 +410,7 @@ dsh-radeon-cloud-patcher/
 │       └── stream-reasoning.sse               实测抓取的真实流
 │
 └── docs/                                      技术文档
-    ├── plugin-parity-assessment.md            与其他 provider 插件的使用方式差异评估
-    ├── feasibility-assessment.md              可行性评估与线格式差异矩阵
-    ├── implementation-plan.md                 实施计划与检查点结论
-    ├── live-verification.md                   真机联调实测记录
-    ├── reference-commandcode-provider.md      第三方 provider 插件参考实现分析
-    └── market-submission.md                   插件市场投稿说明
+    └── market-submission.md                   插件市场投稿与 npm 发布说明
 ```
 
 > 插件壳只做四件事：**分发**（npm 包，可被插件市场安装）、**声明**（provider 定义写在
