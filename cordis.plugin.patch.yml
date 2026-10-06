@@ -7,13 +7,16 @@
 # 会被一并抹掉。provider 定义改由插件在启动时按键合并写入，
 # 只新增或覆盖 providers.radeon-cloud 这一个键。
 #
-# `name` 必须是 profile node_modules 里的完整包标识符；pnpm 按真实
+# `id` 是本条目在 profile 里的唯一键，按 DSH 现有惯例取不带作用域的短名
+# （对照 llm-pi-ai、llm-commandcode），它不承担包名职责。
+#
+# `name` 则必须是 profile node_modules 里的完整包标识符；pnpm 按真实
 # （scoped）名链接，裸写包名会解析失败。必须加引号——YAML 中以 @ 开头的
 # 标量会被当作指令符解析。
 
 - insert:
-    - id: dsh-radeon-cloud-patcher
-      name: "dsh-radeon-cloud-patcher"
+    - id: radeon-cloud-patcher
+      name: "@zhz8888/dsh-radeon-cloud-patcher"
       config:
         # 自动写入 provider 定义。关闭后插件只做启动校验与看护，
         # 不再改动 profile 文件，适合由使用者自行维护配置的场景。

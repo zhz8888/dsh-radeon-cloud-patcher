@@ -33,7 +33,7 @@ export function loadYaml() {
     }
   }
   throw new Error(
-    'dsh-radeon-cloud-patcher: 找不到 yaml 模块。请确认本插件已装进 DSH profile，' +
+    '@zhz8888/dsh-radeon-cloud-patcher: 找不到 yaml 模块。请确认本插件已装进 DSH profile，' +
     '或用环境变量 DSH_MODULES 指向一个包含 yaml 的 node_modules 目录。',
   )
 }

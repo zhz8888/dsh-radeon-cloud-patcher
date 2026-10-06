@@ -1,5 +1,5 @@
 /**
- * dsh-radeon-cloud-patcher —— 把 AMD Radeon Cloud 的 provider 定义按**键**合并进
+ * @zhz8888/dsh-radeon-cloud-patcher —— 把 AMD Radeon Cloud 的 provider 定义按**键**合并进
  * DSH profile，让它由 DSH 自带的 llm-pi-ai 承载；启动时校验该定义。
  *
  * 名字里的 patcher 指的就是这件事：DSH 的补丁语义是整体替换，直接用补丁改写
@@ -33,7 +33,7 @@ import { validateProfile, describeIssues } from './validate.js'
 export { PROVIDER_KEY, TARGET_ENTRY_ID }
 
 /** 插件注册名。 */
-export const name = 'dsh-radeon-cloud-patcher'
+export const name = '@zhz8888/dsh-radeon-cloud-patcher'
 
 /** 需要的上下文服务。llm 用于在插件停用时释放注册。 */
 export const inject = ['llm']

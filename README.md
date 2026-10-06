@@ -2,7 +2,7 @@
 
 把 [AMD Radeon Cloud](https://amd-aim.github.io/radeon-cloud-docs/) 接入 DeepSeek Harness 的模型选择器，**完整支持模型思考（reasoning）功能**。
 
-包名 `dsh-radeon-cloud-patcher`。它把 provider 定义**按键合并**进你的 profile，由 DSH 自带的
+包名 `@zhz8888/dsh-radeon-cloud-patcher`。它把 provider 定义**按键合并**进你的 profile，由 DSH 自带的
 `dsh-llm-pi-ai`（通用 OpenAI 兼容 provider）承载——**不修改 DSH 本体，不需要自研适配器**。
 
 > 之所以叫 patcher 而不是 provider，是因为本项目**不承载任何 provider 逻辑**。
@@ -92,7 +92,7 @@ Radeon 的响应体与流式分片都存在一个容易致错的形态：思考�
 推荐用 DSH 的插件管理器安装（插件 → 添加插件，输入包名或本地目录路径）：
 
 ```bash
-dsh plugin --profile <profile> add dsh-radeon-cloud-patcher
+dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher
 ```
 
 也可以直接编辑 profile 的 `package.json`，在 `dsh.profile.bundles` 中加入本包名，
