@@ -180,6 +180,7 @@ RADEON_API_KEY=rc-你的密钥 ./scripts/radeon-api.sh GET /models
 ```
 dsh-radeon-cloud-patcher/
 ├── README.md                                  本文件
+├── AGENTS.md                                  智能体与协作者指引
 ├── LICENSE                                    MIT 许可证
 ├── package.json                               插件包清单（版本闸门、导出、脚本）
 ├── cordis.plugin.patch.yml                    bundle 补丁：只插入本插件行
