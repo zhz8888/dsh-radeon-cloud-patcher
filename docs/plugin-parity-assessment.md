@@ -185,7 +185,7 @@ npm 包（可被 dshmarket 分发）
 | 要求 | 落实方式 | 状态 |
 | --- | --- | --- |
 | 不破坏用户配置 | 插件**不再写 profile**：provider 定义由自带补丁层声明，profile 里出现覆盖时启动即响亮失败。仍需合并时用 `pnpm install:profile`（键级合并 + 文本级编辑，保留注释、缩进与键序；写入前断言其余条目逐字未变，失败即中止并自动备份，同 id 定义不一致时拒绝覆盖） | ✅ 已落实，32 项合并语义回归测试覆盖 |
-| 版本闸门 | `peerDependencies` 里的 `@deepseek-ai/dsh-*` 范围声明支持 DSH `0.2.x`，版本不匹配时插件管理器直接拒绝安装（`engines.dsh` 与 `dsh.compatibility` 是同样的声明，但闸门判定只读 peer） | ✅ 已落实 |
+| 版本闸门 | `peerDependencies` 里的 `@deepseek-ai/dsh-*` 声明为 `>=0.2.0-rc.1`（**只有下界**，DSH 升大版本不必重发插件），低于下界时插件管理器直接拒绝安装（`engines.dsh` 与 `dsh.compatibility` 是同样的声明，但闸门判定只读 peer） | ✅ 已落实 |
 | 分发渠道 | 独立 npm 包，`dsh.bundle.patch` 声明 provider 定义并插入本插件行，可由插件市场或 `dsh plugin add` 安装；装完重启即生效，无需手工步骤 | ✅ 已具备发布形态 |
 | 让静默失效变成响亮失败 | 启动时校验定义，并判定 id 归属：被 profile 覆盖 → 报「定义未生效 + 合并命令」；同 id 定义与本插件不一致 → 报「id 冲突 + 第一处差异」 | ✅ 已落实 |
 | 同上，对「上游字段改名」这一类 | 运行时 `await import('@deepseek-ai/dsh-llm-pi-ai')` 取真实 schema 校验，取不到时降级为结构校验并告警（不在启动路径上硬失败）；`pnpm validate` 是同一道校验的离线入口 | ✅ 已落实（含降级）；CI 里仍建议跑 `pnpm validate` |

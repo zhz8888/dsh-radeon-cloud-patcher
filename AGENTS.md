@@ -106,21 +106,39 @@ for (const [name, range] of Object.entries(dependencies)) {
 2. `engines.dsh` 与 `dsh.compatibility` 是给人看的声明，**必须与 peer 保持同步**，但它们不决定能否安装。改兼容范围时改的是 peer。
 3. 预检发生在 `pnpm install` **之前**，读的是我们自己写的 `peerDependencies`。
 
-### peer 范围必须带显式预发布分支
+### 范围形态：只有下界 `>=0.2.0-rc.1`
 
-node-semver 只有当范围里**某个比较符**与该版本的 `major.minor.patch` 元组一致、且自身带预发布标签时，才放行该预发布：
+当前范围是 `>=0.2.0-rc.1`——**故意不写上界**：写死上界意味着 DSH 每升一个大版本都要重发一版插件放宽范围，代价大于收益（原先的双分支 `>=0.2.0-rc.1 <0.2.1-0 || >=0.2.1-0 <0.3.0-0` 就是为此留下的历史）。
 
-| 范围 | `0.2.0-rc.2` | `0.2.1-alpha.1` |
+代价与边界，改范围前先看这张实测表（用 DSH 自带的 semver 跑过）：
+
+| 运行时版本 | DSH 闸门（`includePrerelease: true`） | npm/pnpm 默认规则 |
 |---|---|---|
-| `>=0.2.0-rc.1 <0.3.0-0` | ✅ | ❌ 静默排除 |
-| `>=0.2.0-rc.1 <0.2.1-0 \|\| >=0.2.1-0 <0.3.0-0` | ✅ | ✅ |
+| `0.2.0-rc.2` | ✅ | ✅ |
+| `0.2.0` / `0.2.1` / `0.3.0` / `1.0.0` | ✅ | ✅ |
+| `0.2.1-alpha.1`、`0.3.0-beta.1` 等**新元组的预发布** | ✅ | ❌ |
 
-漏掉的后果不是报错版本号，而是用户遇到 `ERESOLVE` 得手工绕过。**写完 peer 范围，两个路径都要验**：DSH 闸门（`includePrerelease: true`）与 npm/pnpm 默认解析。
+node-semver 规定：带预发布标签的版本，只有在范围里存在「元组相同、且自身也带预发布标签」的比较符时才被放行。`>=0.2.0-rc.1` 只覆盖 `0.2.0` 这一元组的预发布，于是新元组的预发布会卡在 pnpm 那一步（`ERESOLVE`），而 DSH 的闸门因为带 `includePrerelease` 会放行——**两者判定不一致时，失败的是 pnpm**。
+
+真遇到时二选一，别去猜：
+
+```bash
+# ① 给该元组补一条分支（例：要支持 0.2.1 的预发布）
+#    ">=0.2.0-rc.1 <0.2.1-0 || >=0.2.1-0"
+# ② 或让 pnpm 放宽 peer 校验（dsh plugin 的参数原样转发给 pnpm）
+dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher \
+  --config.strict-peer-dependencies=false
+```
+
+范围无上界的另一半代价：**失去「未来版本被挡住」这层保护**（原先 0.3.0 及以上根本装不上）。因此插件自身必须继续在启动时响亮失败——定义校验、id 归属判定、收尾核验路由是否注册，三者都不能退化。
+
+三处声明（`peerDependencies`、`engines.dsh`、`dsh.compatibility.dsh`）由 `pnpm test:manifest` 断言逐字一致，改一处必须三处同改。
 
 ## 常用命令
 
 ```bash
-pnpm test                 # 全量：合并语义 / 文本级合并 / 所有权判定 / 启动看护 / 补丁一致性 / 思考取回
+pnpm test                 # 全量：清单不变式 / 合并语义 / 文本级合并 / 所有权判定 / 启动看护 / 补丁一致性 / 思考取回
+pnpm test:manifest        # 三处 DSH 版本声明一致、无上界、清单指向的文件都存在
 pnpm test:merge           # 合并语义 + 文本级合并 + 所有权判定（离线、不碰 DSH 运行时）
 pnpm test:guard           # 启动看护的四种结局
 pnpm test:patch           # 补丁与定义真源一致 + 客户端补丁注入的规则
@@ -132,7 +150,7 @@ pnpm install:profile:dry  # 补救路径：演练合并进 profile，只打印�
 pnpm install:profile      # 补救路径：实际写入（自动备份，冲突时拒绝覆盖）
 ```
 
-改完代码至少跑 `pnpm test && pnpm validate`；**改了 `provider/radeon-cloud.yml` 还要跑 `pnpm sync:patch`**，否则补丁里的副本会漂。`pnpm validate` 是唯一能发现「上游把字段改了名」的手段，**升级 DSH 后务必跑一次**。
+改完代码至少跑 `pnpm test && pnpm validate`；**改了 `provider/radeon-cloud.yml` 还要跑 `pnpm sync:patch`**，否则补丁里的副本会漂。**改了 `peerDependencies` 的 DSH 范围要三处同改并跑 `pnpm install` 刷新锁文件**（锁文件里记着 specifier，不同步会让 `--frozen-lockfile` 失败）。`pnpm validate` 是唯一能发现「上游把字段改了名」的手段，**升级 DSH 后务必跑一次**。
 
 ### 测试用自研 runner，不是 node:test
 

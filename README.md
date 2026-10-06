@@ -120,7 +120,7 @@ Radeon 的响应体与流式分片都存在一个容易致错的形态：思考�
 
 | 项 | 要求 | 说明 |
 | --- | --- | --- |
-| DSH | `0.2.x`（含预发布） | 由 `peerDependencies` 声明范围，版本不匹配会被安装器拒绝 |
+| DSH | `>=0.2.0-rc.1`（含预发布，无上界） | 由 `peerDependencies` 声明范围，低于下界会被安装器拒绝；上界不写，DSH 升大版本不需要插件跟着重发（见[版本闸门](#版本闸门)） |
 | Node.js | `>=22` | 与 `package.json` 的 `engines.node` 一致；仅运行 `scripts/` 与 `test/` 下的脚本时需要 |
 | bash | 任意 | 仅 `scripts/radeon-api.sh` 需要 |
 | 操作系统 | macOS | `scripts/validate-config.mjs` 按 DSH 桌面版应用包的绝对路径加载校验用的 schema，路径为 `/Applications/DSH Desktop.app/Contents/Resources/app/node_modules`。其余脚本与系统无关 |
@@ -208,16 +208,34 @@ dsh plugin --profile <profile> add ./zhz8888-dsh-radeon-cloud-patcher-<版本>.t
 
 ### 版本闸门
 
-本包通过 `peerDependencies` 里的 `@deepseek-ai/dsh-*` 范围声明支持 DSH `0.2.x`
-（含 `0.2.0-rc.1` 及之后的全部预发布与正式版）。DSH 安装器会把每个
-`@deepseek-ai/dsh-*` peer 与当前运行时版本比对，**不匹配则直接拒绝安装**，
-不会出现「装上了但思考功能失效」的情况。
+本包的 DSH 兼容范围是 **`>=0.2.0-rc.1`——只有下界，没有上界**，
+三处声明逐字一致（`peerDependencies`、`engines.dsh`、`dsh.compatibility.dsh`，
+由 `pnpm test:manifest` 断言）：
 
-> 范围写成 `>=0.2.0-rc.1 <0.2.1-0 || >=0.2.1-0 <0.3.0-0` 的显式双分支，
-> 是为了同时满足 DSH 的闸门判定与 npm/pnpm 的 peer 解析：node-semver 只有当范围里
-> 某个比较符与该版本的 `major.minor.patch` 元组完全一致、且自身也带预发布标签时，
-> 才会放行预发布版本。单写 `>=0.2.0-rc.1 <0.3.0-0` 会把 `0.2.1-alpha.1` 这类
-> **不同元组**的预发布静默排除。
+- DSH 安装器读的是 `peerDependencies`：运行时版本低于下界 → **直接拒绝安装**，
+  不会出现「装上了但思考功能失效」；
+- **上界故意不写**：写死上界意味着 DSH 每升一个大版本都要重发一版插件去放宽范围，
+  代价大于收益。换来的代价是失去「未来版本被挡住」这层保护——改由插件自己的
+  响亮失败兜底（定义校验、id 归属判定、启动收尾核验路由是否注册，
+  见[归属与删除](#归属与删除)）。
+
+> **预发布的一个细节**：node-semver 规定，带预发布标签的版本只有在范围里存在
+> 「元组相同、且自身也带预发布标签」的比较符时才被放行。
+> `>=0.2.0-rc.1` 因此只覆盖 `0.2.0` 这一元组的预发布（`0.2.0-rc.2` ✓）；
+> `0.2.1-alpha.1`、`0.3.0-beta.1` 这类**新元组的预发布**在 npm/pnpm 的默认规则下
+> 不被放行（DSH 自己的闸门带 `includePrerelease`，会放行——两者判定不一致时，
+> 失败的是 pnpm 那一步）。真遇到时二选一：
+>
+> ```bash
+> # ① 给该元组补一条分支，写回范围（例如到 0.2.1 的预发布）
+> #    ">=0.2.0-rc.1 <0.2.1-0 || >=0.2.1-0"
+>
+> # ② 或让 pnpm 放宽 peer 校验（参数照样原样转发）
+> dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher \
+>   --config.strict-peer-dependencies=false
+> ```
+>
+> 稳定版（`0.2.0`、`0.2.1`、`0.3.0`、`1.0.0`…）不受这个细节影响，一律放行。
 
 ---
 
@@ -537,7 +555,7 @@ node ~/.dsh/profiles/<profile>/node_modules/@zhz8888/dsh-radeon-cloud-patcher/sc
 
 ## 兼容性
 
-- 目标 DSH 版本：`0.2.x`（范围由 `peerDependencies` 声明）
+- 目标 DSH 版本：`>=0.2.0-rc.1`，**无上界**（三处声明一致，见[版本闸门](#版本闸门)）
 - 模型目录与档位表采集日期：**2026-10-04**
 - 收录的模型当前均为 `stability: experimental`
 - 仅覆盖 Public Free Model APIs（共享端点）；独占端点的基础 URL 每次实例重启都会变化，不在本项目范围内

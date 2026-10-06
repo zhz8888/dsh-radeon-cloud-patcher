@@ -116,23 +116,31 @@ for (const [name, range] of Object.entries(dependencies)) {
 `engines.dsh` 与 `dsh.compatibility` 仍建议写——它们是给人看的声明——
 但**放宽兼容范围时，要改的是 `peerDependencies`**。
 
-### 二、peer 范围必须带显式预发布分支
+### 二、peer 范围的形态：预发布与上界
 
-node-semver 只有当范围里**某个比较符**与该版本的 `major.minor.patch` 元组完全一致、
-且自身也带预发布标签时，才会放行该预发布版本。看起来很宽的范围也会漏：
+本包取的是**只有下界**的形态：
 
-| 范围 | `0.2.0-rc.2` | `0.2.1-alpha.1` |
+```json
+"@deepseek-ai/dsh-llm": ">=0.2.0-rc.1"
+```
+
+理由是不写上界就不必在 DSH 每升一个大版本时重发插件放宽范围。代价要清楚：
+node-semver 规定，只有范围里存在「元组相同、且自身也带预发布标签」的比较符时，
+该预发布才被放行——所以 `>=0.2.0-rc.1` 覆盖 `0.2.0` 元组的预发布，
+却漏掉新元组的预发布，而且**两条路径的判定并不一致**：
+
+| 运行时版本 | DSH 闸门（`includePrerelease: true`） | npm/pnpm 默认规则 |
 | --- | --- | --- |
-| `>=0.2.0-rc.1 <0.3.0-0` | ✅ | ❌ 静默排除 |
-| `>=0.2.0-rc.1 <0.2.1-0 \|\| >=0.2.1-0 <0.3.0-0` | ✅ | ✅ |
+| `0.2.0-rc.2`、`0.2.0`、`0.2.1`、`0.3.0`、`1.0.0` | ✅ | ✅ |
+| `0.2.1-alpha.1`、`0.3.0-beta.1` 等新元组的预发布 | ✅ | ❌ |
 
 漏掉的后果不是报错的版本号，而是用户遇到 `ERESOLVE`，得自己手工绕过。
+真需要覆盖某个元组的预发布时，给该元组补一条分支即可
+（例如到 `0.2.1`：「`>=0.2.0-rc.1 <0.2.1-0 || >=0.2.1-0`」；
+上限写 `<0.2.1-0` 而非 `<0.2.1`，这样 `0.2.1` 本身仍在范围内）。
 
-**写法**：在每个可能出预发布的元组上，各放一条带预发布标签的比较符，用 `||` 连起来。
-上限写 `<0.3.0-0` 而非 `<0.3.0`，这样 `0.3.0` 本身（无预发布标签）会被排除在范围外。
-
-注意 DSH 闸门用的是 `includePrerelease: true`，语义比 npm 默认宽松。
-**一个范围要同时满足两条路径**，写完最好两边都验一遍。
+也可以让用户端绕过：`dsh plugin --profile <profile> add <包名> --config.strict-peer-dependencies=false`
+（`dsh plugin` 的参数原样转发给 pnpm）。
 
 ---
 
@@ -183,7 +191,7 @@ tarball: https://github.com/<owner>/<repo>/releases/latest/download/<plugin>.tgz
 - [ ] `package.json` 有 `dsh.bundle`，且 patch 文件真实存在
 - [ ] 若声明了客户端半边（`dsh.client` + `exports["./client"]`），文件按 DSH 的客户端模块格式（`window.__ModuleLoader__.load`）提供，且注册 `id` 等于包名
 - [ ] `@deepseek-ai/*` 官方包都声明在 `peerDependencies`
-- [ ] peer 范围带显式预发布分支，在 DSH 闸门与 npm 解析两条路径上都验过
+- [ ] peer 范围的形态想清楚了（本包：只有下界、无上界），并在 DSH 闸门与 npm 解析两条路径上都验过预发布行为
 - [ ] 描述里的每个数字、每个命令名都能在代码里找到对应
 - [ ] 分类贴合插件实际做的事
 - [ ] 已添加 `dsh-plugin` topic
