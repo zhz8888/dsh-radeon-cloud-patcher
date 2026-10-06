@@ -21,11 +21,48 @@
 
 ---
 
+## 快速上手
+
+装好 DSH、手上有 Radeon Cloud 的 API 密钥（`rc-…`），三步就能用起来，
+**不需要编辑任何配置文件**：
+
+1. **装插件** —— 桌面版在左侧「插件」页里添加 `@zhz8888/dsh-radeon-cloud-patcher`；
+   命令行执行
+   `dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher`。
+   装不上（pnpm 报 404）就改用[安装](#安装)里的方式三，从源码装同一个包。
+2. **重启 DSH** —— 定义写在补丁层的 config 行里，而插件市场的**热挂载只支持纯 insert 行**，
+   因此安装后市场会提示「重启后生效」，这一步不能省。重启后 provider 就位，没有其它后置步骤。
+3. **填密钥** —— 左下角「账号菜单 → 设置 → 模型」，找到 **Radeon Cloud** 一行，
+   点「编辑」，在「API 密钥」里粘贴密钥，点「保存」。
+
+装好之后：那一行右侧出现**绿点**（悬停显示「API 密钥已配置」）；回到对话，点输入框下方的
+模型选择器，Radeon 的 8 个模型会出现在列表里；选中模型后再选「推理等级」就是思考档位。
+
+**怎么确认真的装好了** —— 三个现象同时成立，说明插件与它的补丁层都到位：
+
+| 现象 | 在哪看 |
+| --- | --- |
+| 模型选择器里出现 Radeon Cloud 的模型 | 输入框下方的模型选择器 |
+| 那一行**没有**「删除」按钮 | 设置 → 模型 → Radeon Cloud 行 |
+| 那一行**不带**「自定义」标签 | 同上 |
+
+**没生效怎么办** —— 插件不会静默消失：定义失效时它**直接让启动失败并写明原因**
+（profile 里已有同 id 定义、profile 的 `llm-pi-ai` 配置把插件层整份盖掉……），
+逐条处置见[归属与删除](#归属与删除)。想手工核验真正生效的配置，用
+`dsh --profile <profile> --dump-config`（`desktop` profile 例外，它由桌面应用独占管理）。
+
+> 更细的安装方式（npm 源、镜像、GitHub、本地 tarball、手工清单）见[安装](#安装)；
+> 密钥、模型、档位、图片输入与升级卸载见[使用](#使用)。
+
+---
+
 ## 目录
 
+- [快速上手](#快速上手)
 - [功能](#功能)
 - [环境要求](#环境要求)
-- [快速开始](#快速开始)
+- [安装](#安装)
+- [使用](#使用)
 - [归属与删除](#归属与删除)
 - [项目结构](#项目结构)
 - [常用命令](#常用命令)
@@ -92,104 +129,169 @@ Radeon 的响应体与流式分片都存在一个容易致错的形态：思考�
 
 ---
 
-## 快速开始
+## 安装
 
-### 1. 安装插件
+四种方式，任选其一。**装完都要重启 DSH**（原因见[快速上手](#快速上手)第 2 步）：
+定义由插件自带的补丁层声明，不写入你的 profile，重启后即生效，没有其它后置步骤。
 
-推荐用 DSH 的插件管理器安装（插件 → 添加插件，输入包名或本地目录路径）：
+### 方式一：DSH 插件管理器（推荐）
+
+桌面版：应用左侧「插件」页 → 「添加插件」→ 输入包名或本地目录路径。
+
+命令行：`dsh plugin --profile <profile> …` 会把参数**原样转发**给 profile 目录里的 pnpm，
+因此 pnpm 支持的写法它都支持：
 
 ```bash
 dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher
+dsh plugin --profile <profile> remove @zhz8888/dsh-radeon-cloud-patcher   # 卸载
 ```
 
-也可以直接编辑 profile 的 `package.json`，在 `dsh.profile.bundles` 中加入本包名，
-再执行 `dsh plugin --profile <profile> install`。
+装完 `dsh.profile.bundles` 会自动多出本包名——插件管理器按各包的 `dsh.bundle` 声明维护它，
+不必手改 profile 清单。
 
-> 本包通过 `peerDependencies` 里的 `@deepseek-ai/dsh-*` 范围声明支持 DSH `0.2.x`
-> （含 `0.2.0-rc.1` 及之后的全部预发布与正式版）。DSH 安装器会把每个
-> `@deepseek-ai/dsh-*` peer 与当前运行时版本比对，**不匹配则直接拒绝安装**，
-> 不会出现「装上了但思考功能失效」的情况。
+> **桌面版的 `desktop` profile 由应用独占管理**：在普通终端里执行
+> `dsh plugin --profile desktop …` 会被拒绝（`profile "desktop" is managed exclusively by
+> the Electron application`）。两条正路：用应用内的插件页安装，或在应用右上角
+> 「打开 DSH 终端」里执行同样的命令。`web` / `tui` / `headless` 等 profile 不受此限。
 >
+> 若你的源上还没有这个包（pnpm 报 404），用方式三装同一个包。
+
+### 方式二：从 npm 源安装
+
+方式一走的就是 npm registry；换源只需给 pnpm 传参，或写进 profile 自己的 `.npmrc`：
+
+```bash
+# 单次指定镜像源
+dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher \
+  --registry https://registry.npmmirror.com
+
+# 或给这个 profile 固定源（.npmrc 是 pnpm 自己的配置文件）
+printf 'registry=https://registry.npmmirror.com\n' >> ~/.dsh/profiles/<profile>/.npmrc
+
+# 指定版本或范围（pnpm 语法）
+dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher@<版本>
+```
+
+> 本包的 tarball 里只有 JSON / YAML / JS，**没有安装期构建脚本**，
+> 因此换源、离线镜像、内网私服都不会碰到 pnpm 的 `allowBuilds` 授权那一步。
+
+### 方式三：从源码 / GitHub 安装
+
+三种源码形态都直接可用，原因同上：本项目零运行时依赖、没有构建步骤。
+
+```bash
+git clone https://github.com/zhz8888/dsh-radeon-cloud-patcher.git
+
+# ① 本地目录：pnpm 做 link，仓库里改了代码重启 DSH 即生效（开发本插件时最省事）
+dsh plugin --profile <profile> add /绝对路径/dsh-radeon-cloud-patcher
+
+# ② git 依赖：直接装公开仓库
+dsh plugin --profile <profile> add github:zhz8888/dsh-radeon-cloud-patcher
+
+# ③ 本地 tarball：适合内网分发（npm pack 在仓库目录里执行）
+npm pack
+dsh plugin --profile <profile> add ./zhz8888-dsh-radeon-cloud-patcher-<版本>.tgz
+```
+
+> DSH 对「装 git 依赖」有一句提醒：带 `prepare` 脚本的插件会在安装期构建，
+> 而 pnpm 默认拦住构建脚本，需要先在 profile 的 `pnpm-workspace.yaml` 里追加
+> `allowBuilds` 才能装上。**本插件不属于这种情况**——它没有任何安装期脚本。
+
+### 方式四：手工改 profile 清单
+
+不用插件管理器时：
+
+1. 在 profile 的 `package.json` 里把本包加进 `dependencies`；
+2. 把包名追加进 `dsh.profile.bundles`（顺序即补丁层顺序，放在 `@deepseek-ai/dsh-base`
+   与 `@deepseek-ai/dsh-web-app` 之后即可）；
+3. 执行 `dsh plugin --profile <profile> install` 安装依赖。
+
+### 版本闸门
+
+本包通过 `peerDependencies` 里的 `@deepseek-ai/dsh-*` 范围声明支持 DSH `0.2.x`
+（含 `0.2.0-rc.1` 及之后的全部预发布与正式版）。DSH 安装器会把每个
+`@deepseek-ai/dsh-*` peer 与当前运行时版本比对，**不匹配则直接拒绝安装**，
+不会出现「装上了但思考功能失效」的情况。
+
 > 范围写成 `>=0.2.0-rc.1 <0.2.1-0 || >=0.2.1-0 <0.3.0-0` 的显式双分支，
 > 是为了同时满足 DSH 的闸门判定与 npm/pnpm 的 peer 解析：node-semver 只有当范围里
 > 某个比较符与该版本的 `major.minor.patch` 元组完全一致、且自身也带预发布标签时，
 > 才会放行预发布版本。单写 `>=0.2.0-rc.1 <0.3.0-0` 会把 `0.2.1-alpha.1` 这类
 > **不同元组**的预发布静默排除。
 
-### 2. provider 定义随插件生效
+---
 
-定义由插件的补丁层声明，装完插件重启 DSH，即可在「设置 → 模型」看到 Radeon Cloud 行——
-**不需要任何额外步骤**。
+## 使用
 
-启动时插件会判定这个 id 现在由谁说了算，四种结局各有明确处置：
+### 1. 配置 API 密钥
 
-| 情况 | 结果 |
-| --- | --- |
-| `llm-pi-ai` 的 config 没被别人碰过 | 插件层的定义生效，正常启动 |
-| profile 里有一份**与本插件一致**的同 id 声明 | 放行，并提示它会在卸载后残留（常见于你在设置页保存过一次、被物化出的副本） |
-| profile 里有一份**与之不一致**的同 id 声明 | **启动失败**，报「provider id 冲突」并指名第一处差异 |
-| profile 给 `llm-pi-ai` 写了 config 却没有本 provider | **启动失败**，报「定义未生效」并给出下面的合并命令 |
+密钥从 [AMD Radeon Cloud 文档](https://amd-aim.github.io/radeon-cloud-docs/) 里的入口申请
+（本项目只覆盖 Public Free Model APIs 的共享端点）。拿到 `rc-…` 之后二选一：
 
-原因：DSH 的非 insert 补丁是**整体替换**。`llm-pi-ai` 的 config 只要在 profile 里出现过，
-它就会整份盖掉插件层的定义。想与你自己添加的 provider 共存，就用按键合并把定义落进 profile：
+**方式一：设置页（推荐给日常使用）**
 
-```bash
-# 先演练：会打印本次改动，以及被保留的其它 provider
-pnpm install:profile:dry
+左下角「账号菜单 → 设置 → 模型」→ Radeon Cloud 行 →「编辑」→ 在「API 密钥」里粘贴
+`rc-…` →「保存」。保存成功后该行右侧出现**绿点**（悬停显示「API 密钥已配置」；
+没配密钥时是红点，提示「API 密钥缺失」）。
 
-# 确认无误后写入（自动备份，断言其余条目与同级键逐字未变）
-pnpm install:profile
-```
+密钥写进本机凭据存储 `~/.dsh/.credentials.yaml` 的 `RADEON_CLOUD_API_KEY` 条目，
+明文不落配置文件、界面不回显；要换密钥就再次「编辑」并输入新值
+（输入框会提示「已配置——输入新值可替换」）。`scripts/` 下的脚本读的是同一个条目，
+因此在设置页填过一次，脚本也就不用再配了。
 
-输出示例：
-
-```
-【写入】 ~/.dsh/profiles/desktop/cordis.patch.yml
-  新增 providers.radeon-cloud（8 个模型）
-  保留的其它 provider：my-corp-proxy, another-one
-  顶层条目 12 个，增减 0 个
-```
-
-> **合并粒度是键**：只新增或替换 `providers.radeon-cloud` 这一个键。
-> 你在 `llm-pi-ai` 下自行添加的 provider、你在补丁文件里写的注释、缩进风格与
-> 键序，都原样保留。合并采用文本级编辑，不会重新序列化你的文件。
->
-> 已经存在同 id 定义且与本插件不一致时，这条命令**拒绝覆盖**并打印第一处差异，
-> 确认要覆盖再加 `--force`——id 冲突要响亮，不要悄悄接管。
->
-> 详见[归属与删除](#归属与删除)。
-
-### 3. 配置 API 密钥
-
-密钥有两种提供方式，任选其一。
-
-**方式一：在 DSH 的模型设置页录入（推荐给日常使用）**
-
-重启 DSH，在「设置 → 模型」找到 Radeon Cloud 行，填入密钥。DSH 会把它写进本机凭据存储
-`~/.dsh/.credentials.yaml` 的 `RADEON_CLOUD_API_KEY` 条目，明文不落配置、不回显。
-此后 `scripts/` 下的脚本会自动读取该条目，无需再做任何设置。
-
-**方式二：环境变量（适合未安装 DSH 或不想在本机留存凭据文件的使用者）**
+**方式二：环境变量（不落盘，适合临时试用与 CI）**
 
 ```bash
-export RADEON_API_KEY=rc-你的密钥
+export RADEON_CLOUD_API_KEY=rc-你的密钥
 ```
 
-单次调用也可以只对这一条命令生效：
+凭据服务按「**继承的进程环境** → 插件写入的凭据存储 → 当前目录 `.env` → `$DSH_HOME/.env`」
+依次查找，环境变量优先级最高，一次性的写法也有效：
 
 ```bash
-RADEON_API_KEY=rc-你的密钥 ./scripts/radeon-api.sh GET /models
+RADEON_CLOUD_API_KEY=rc-你的密钥 dsh --profile <profile>
 ```
 
-两种方式共存时，脚本按「环境变量优先、凭据文件次之」取用密钥；
-两者都没有时直接报错并提示上述做法。
+> 注意名字：**插件运行时**读的是 `RADEON_CLOUD_API_KEY`（即 provider 定义里的
+> `apiKeyEnv`），而**仓库脚本**用的是 `RADEON_API_KEY`。两者互不影响，
+> 脚本那一套见下面的表格。
 
-### 4. 相关环境变量
+### 2. 选模型与思考档位
+
+对话输入框下方点模型选择器 → 选 Radeon Cloud 的模型 → 再选「推理等级」，
+那就是思考档位。档位按模型逐个声明（见[可用模型](#可用模型)）：
+GLM 与 Qwen 系不接受 `none`，因此没有关闭档位；`MiniCPM5-2B` 不是推理模型，
+不会出现档位下拉。选了服务端不接受的档位是**硬失败**（400 / 422），不会静默降级。
+
+### 3. 图片输入
+
+支持图片：DeepSeek-V4.1-Flash、DeepSeek-V4-Flash-Vision-Exp、MiMo-V2.6-Flash、
+Qwen3.8-27B、Qwen3.8-Flash-Next。只收文本：DeepSeek-V4-Flash、GLM-5.3-Flash、MiniCPM5-2B。
+
+### 4. 升级与卸载
+
+```bash
+dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher@latest  # 升级
+dsh plugin --profile <profile> remove @zhz8888/dsh-radeon-cloud-patcher      # 卸载
+```
+
+升级不需要额外动作：定义由插件层声明，装上新版本重启即生效
+（在市场里升级同样会提示「重启后生效」，原因与安装一致）。
+**卸载即删除供应商**——插件层消失，provider 与设置页那一行一起消失。
+
+> 例外：如果你曾用 `pnpm install:profile` 把定义合并进 profile（见[归属与删除](#归属与删除)），
+> profile 里那份副本会**盖住**插件层的新定义——升级后要么重跑一次
+> `pnpm install:profile`，要么删掉那份副本，让插件独占管理。
+
+### 5. 仓库脚本用的环境变量
+
+下面这些只影响仓库里的 `scripts/`（`radeon-api.sh`、`probe-efforts.mjs`），
+与插件运行时无关：
 
 | 变量 | 作用 | 默认值 |
 | --- | --- | --- |
-| `RADEON_API_KEY` | API 密钥字面值，优先级高于凭据文件 | 无 |
-| `RADEON_KEY_REF` | 从凭据文件读取时使用的条目名 | `RADEON_CLOUD_API_KEY` |
+| `RADEON_API_KEY` | 脚本用的密钥字面值，优先级高于凭据文件 | 无 |
+| `RADEON_KEY_REF` | 脚本从凭据文件读取时用的条目名 | `RADEON_CLOUD_API_KEY` |
 | `RADEON_BASE` | 端点基础 URL，可指向独占端点 | `https://developer.amd.com.cn/radeon/api/v1` |
 | `DSH_HOME` | DSH 数据目录，凭据文件据此定位 | `~/.dsh` |
 
@@ -218,6 +320,22 @@ RADEON_API_KEY=rc-你的密钥 ./scripts/radeon-api.sh GET /models
 
   代价说清楚：它依赖 DSH 的 DOM 结构与类名片段，DSH 改版后可能静默失效——
   标签重新出现，功能不受影响。
+
+### 定义归谁管：启动时的判定
+
+DSH 的非 insert 补丁是**整体替换**：`llm-pi-ai` 的 config 只要在 profile 里出现过，
+就会整份盖掉插件层的定义。插件启动时静态读 profile / home / 命令行 overlay 三层，
+判定这个 id 现在由谁说了算：
+
+| 情况 | 结果 |
+| --- | --- |
+| 没人碰过 `llm-pi-ai` 的 config | 插件层的定义生效，正常启动 |
+| profile 里有一份**与本插件一致**的同 id 声明 | 放行，并提示它会在卸载后残留（通常是你在设置页保存过一次、被物化出的副本） |
+| profile 里有一份**与之不一致**的同 id 声明 | **启动失败**：报「provider id 冲突」，并指名第一处差异字段 |
+| profile 给 `llm-pi-ai` 写了 config 却没有本 provider | **启动失败**：报「定义未生效」，并打印可直接执行的合并命令 |
+
+后两种是**失败 + 原因**，而不是静默接管或静默消失——这是本项目的取舍：id 冲突要响亮。
+处置方式（按键合并、`--force`、输出示例）见[已知限制](#6-与用户自有-provider-共存)。
 
 > 想彻底消除标签、不留 DOM 依赖，只能让插件自己注册 provider 路由，也就意味着自己实现
 > 传输、思考解析与用量计量。本项目定位是「薄壳 + 由 DSH 自带的 pi-ai 承载」，
@@ -388,15 +506,29 @@ DSH 的非 insert 补丁是整体替换，因此你自己写的 `llm-pi-ai` conf
 想与自有 provider 共存，就用补救命令做按键合并：
 
 ```bash
+# 在插件仓库里
 pnpm install:profile:dry   # 演练：打印改动与被保留的其它 provider
 pnpm install:profile       # 写入（自动备份，断言其余条目与同级键逐字未变）
+
+# 只装了插件、没有克隆仓库时，脚本在包里；启动失败信息会直接打印完整命令
+node ~/.dsh/profiles/<profile>/node_modules/@zhz8888/dsh-radeon-cloud-patcher/scripts/apply-to-profile.mjs \
+  ~/.dsh/profiles/<profile>/cordis.patch.yml
+```
+
+输出示例：
+
+```
+【写入】 ~/.dsh/profiles/desktop/cordis.patch.yml
+  新增 providers.radeon-cloud（8 个模型）
+  保留的其它 provider：my-corp-proxy, another-one
+  顶层条目 12 个，增减 0 个
 ```
 
 合并粒度是键：只新增或替换 `providers.radeon-cloud` 这一个键，你添加的其它 provider、
 你写的注释、缩进风格与键序都原样保留（文本级编辑，不重新序列化你的文件）。
 写入前会断言：除 `radeon-cloud` 外的同级 provider 键集合一致、`llm-pi-ai` 之外的顶层条目
-逐字符未变，任一不成立即中止且不落盘；已存在不一致的同 id 定义时**拒绝覆盖**，
-需要 `--force` 才覆盖。
+逐字符未变，任一不成立即中止且不落盘；已存在不一致的同 id 定义时**拒绝覆盖**并打印第一处
+差异，确认要覆盖再加 `--force`。
 
 另有一处要注意：**不要另写一条 `llm-pi-ai` 的非 insert 补丁**去改该行的其它字段——
 那会整体替换这一行，把 `providers` 一并带走。要改就只改你需要的那一个键。
