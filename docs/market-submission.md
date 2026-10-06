@@ -181,6 +181,7 @@ tarball: https://github.com/<owner>/<repo>/releases/latest/download/<plugin>.tgz
 - [ ] 仓库在 GitHub 公开可访问，`url` 与地址完全一致
 - [ ] 仓库创建满 1 天
 - [ ] `package.json` 有 `dsh.bundle`，且 patch 文件真实存在
+- [ ] 若声明了客户端半边（`dsh.client` + `exports["./client"]`），文件按 DSH 的客户端模块格式（`window.__ModuleLoader__.load`）提供，且注册 `id` 等于包名
 - [ ] `@deepseek-ai/*` 官方包都声明在 `peerDependencies`
 - [ ] peer 范围带显式预发布分支，在 DSH 闸门与 npm 解析两条路径上都验过
 - [ ] 描述里的每个数字、每个命令名都能在代码里找到对应

@@ -2,12 +2,18 @@
 
 把 [AMD Radeon Cloud](https://amd-aim.github.io/radeon-cloud-docs/) 接入 DeepSeek Harness 的模型选择器，**完整支持模型思考（reasoning）功能**。
 
-包名 `@zhz8888/dsh-radeon-cloud-patcher`。它把 provider 定义**按键合并**进你的 profile，由 DSH 自带的
-`dsh-llm-pi-ai`（通用 OpenAI 兼容 provider）承载——**不修改 DSH 本体，不需要自研适配器**。
+包名 `@zhz8888/dsh-radeon-cloud-patcher`。provider 定义由插件**自带的补丁层**声明，
+由 DSH 自带的 `dsh-llm-pi-ai`（通用 OpenAI 兼容 provider）承载——**不修改 DSH 本体，
+不需要自研适配器，也不往你的 profile 里写任何东西**。
 
-> 之所以叫 patcher 而不是 provider，是因为本项目**不承载任何 provider 逻辑**。
-> DSH 的补丁语义是整体替换，直接用补丁改写 `llm-pi-ai` 的 config 会把你自己添加的
-> provider 一并抹掉；因此写入被降到键的粒度，只动 `providers.radeon-cloud`。
+> 之所以叫 patcher，是因为它靠**补丁层**交付：定义写在插件自己的
+> `cordis.plugin.patch.yml` 里。这样做的直接后果有三个，也正是这个设计的目的——
+>
+> | 现象 | 原因 |
+> | --- | --- |
+> | 设置页**没有**「删除」按钮 | DSH 只在「该 provider 路径存在于用户层、且不存在于 base 层」时渲染它；定义在插件的 bundle 层，base 层永远有它 |
+> | 卸载插件 = 删除供应商 | 定义只活在插件里，profile 中不留副本 |
+> | 想删供应商只能卸载插件 | 同上；设置页里也点不到删除 |
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![target: DSH](https://img.shields.io/badge/DSH-0.2.x-blue?label=target)
@@ -20,6 +26,7 @@
 - [功能](#功能)
 - [环境要求](#环境要求)
 - [快速开始](#快速开始)
+- [归属与删除](#归属与删除)
 - [项目结构](#项目结构)
 - [常用命令](#常用命令)
 - [可用模型](#可用模型)
@@ -109,10 +116,22 @@ dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher
 > 才会放行预发布版本。单写 `>=0.2.0-rc.1 <0.3.0-0` 会把 `0.2.1-alpha.1` 这类
 > **不同元组**的预发布静默排除。
 
-### 2. 写入 provider 定义
+### 2. provider 定义随插件生效
 
-插件只负责分发与看护；provider 定义要落到 profile 的 `cordis.patch.yml` 里，
-由 `llm-pi-ai` 承载。这一步是**按键合并**，不是整体替换：
+定义由插件的补丁层声明，装完插件重启 DSH，即可在「设置 → 模型」看到 Radeon Cloud 行——
+**不需要任何额外步骤**。
+
+启动时插件会判定这个 id 现在由谁说了算，四种结局各有明确处置：
+
+| 情况 | 结果 |
+| --- | --- |
+| `llm-pi-ai` 的 config 没被别人碰过 | 插件层的定义生效，正常启动 |
+| profile 里有一份**与本插件一致**的同 id 声明 | 放行，并提示它会在卸载后残留（常见于你在设置页保存过一次、被物化出的副本） |
+| profile 里有一份**与之不一致**的同 id 声明 | **启动失败**，报「provider id 冲突」并指名第一处差异 |
+| profile 给 `llm-pi-ai` 写了 config 却没有本 provider | **启动失败**，报「定义未生效」并给出下面的合并命令 |
+
+原因：DSH 的非 insert 补丁是**整体替换**。`llm-pi-ai` 的 config 只要在 profile 里出现过，
+它就会整份盖掉插件层的定义。想与你自己添加的 provider 共存，就用按键合并把定义落进 profile：
 
 ```bash
 # 先演练：会打印本次改动，以及被保留的其它 provider
@@ -134,7 +153,11 @@ pnpm install:profile
 > **合并粒度是键**：只新增或替换 `providers.radeon-cloud` 这一个键。
 > 你在 `llm-pi-ai` 下自行添加的 provider、你在补丁文件里写的注释、缩进风格与
 > 键序，都原样保留。合并采用文本级编辑，不会重新序列化你的文件。
-> 详见[已知限制](#6-与用户自有-provider-共存)。
+>
+> 已经存在同 id 定义且与本插件不一致时，这条命令**拒绝覆盖**并打印第一处差异，
+> 确认要覆盖再加 `--force`——id 冲突要响亮，不要悄悄接管。
+>
+> 详见[归属与删除](#归属与删除)。
 
 ### 3. 配置 API 密钥
 
@@ -175,6 +198,33 @@ RADEON_API_KEY=rc-你的密钥 ./scripts/radeon-api.sh GET /models
 
 ---
 
+## 归属与删除
+
+本插件要求 `radeon-cloud` 这个 id **由它独占**，因此：
+
+- 设置页那一行**不会出现「删除」按钮**。DSH 的判据是「该 provider 路径存在于用户层、
+  且不存在于 base 层」——定义写在插件的 bundle 层，base 层永远有它，按钮因此永不渲染；
+- **删除供应商 = 卸载插件**。卸载后插件层消失，provider 随之消失。
+  若你曾用 `pnpm install:profile` 把定义合并进 profile，profile 里会留下一份副本
+  （那份副本的所有权归你，卸载后设置页里也会重新出现删除按钮，可自行清理）；
+- **「自定义」标签**：DSH 对**任何不在内置模型目录里的 provider** 硬编码了这个标记
+  （`dsh-llm-pi-ai` 的 `declared: !catalog.has(provider)`），配置层面无从去掉。
+  本插件随包带了一个极小的客户端补丁（`client/client.js`），用一条 CSS 规则把
+  **本 provider 那一行**的标签隐藏掉：
+
+  ```css
+  li:has(button[aria-label*="(radeon-cloud)"]) span[class*="rowTag"] { display: none }
+  ```
+
+  代价说清楚：它依赖 DSH 的 DOM 结构与类名片段，DSH 改版后可能静默失效——
+  标签重新出现，功能不受影响。
+
+> 想彻底消除标签、不留 DOM 依赖，只能让插件自己注册 provider 路由，也就意味着自己实现
+> 传输、思考解析与用量计量。本项目定位是「薄壳 + 由 DSH 自带的 pi-ai 承载」，
+> 因此选择了 CSS 隐藏这条路。
+
+---
+
 ## 项目结构
 
 ```
@@ -182,8 +232,8 @@ dsh-radeon-cloud-patcher/
 ├── README.md                                  本文件
 ├── AGENTS.md                                  智能体与协作者指引
 ├── LICENSE                                    MIT 许可证
-├── package.json                               插件包清单（版本闸门、导出、脚本）
-├── cordis.plugin.patch.yml                    bundle 补丁：只插入本插件行
+├── package.json                               插件包清单（版本闸门、导出、客户端声明、脚本）
+├── cordis.plugin.patch.yml                    bundle 补丁：provider 定义 + 本插件行
 ├── pnpm-workspace.yaml                        本仓库的安装期构建授权（不影响用户安装）
 ├── pnpm-lock.yaml                             依赖锁文件
 ├── .gitignore
@@ -191,15 +241,20 @@ dsh-radeon-cloud-patcher/
 ├── provider/                                  配置本体
 │   └── radeon-cloud.yml                       provider 定义的唯一真源
 │
+├── client/                                    客户端补丁
+│   └── client.js                              隐藏本行的「自定义」标签（DSH 客户端模块格式，非 ESM）
+│
 ├── src/                                       插件实现（薄壳，不含 provider 逻辑）
-│   ├── index.js                               插件入口：启动时校验定义，失效则响亮失败
-│   ├── merge.js                               键级合并的纯函数实现
+│   ├── index.js                               插件入口：启动校验、所有权判定、收尾核验
+│   ├── ownership.js                           所有权判定的纯函数（四种结局与差异定位）
+│   ├── merge.js                               键级合并的纯函数（补救路径使用）
 │   ├── patch-text.js                          文本级合并，保留用户注释与格式
 │   ├── validate.js                            定义的结构校验
 │   └── yaml.js                                定位 YAML 解析器
 │
 ├── scripts/                                   运维与校验工具
-│   ├── apply-to-profile.mjs                   按键合并进 profile（带断言与自动备份）
+│   ├── sync-bundle-patch.mjs                  把定义真源渲染进补丁的生成区块
+│   ├── apply-to-profile.mjs                   补救路径：按键合并进 profile（冲突时拒绝覆盖）
 │   ├── validate-config.mjs                    用 llm-pi-ai 真实 schema 校验定义
 │   ├── probe-efforts.mjs                      实测逐模型 reasoning_effort 档位表
 │   └── radeon-api.sh                          API 调用助手（密钥取自环境变量或凭据存储）
@@ -207,6 +262,10 @@ dsh-radeon-cloud-patcher/
 ├── test/                                      离线测试
 │   ├── merge.test.mjs                         合并语义与幂等性
 │   ├── patch-text.test.mjs                    不破坏用户 provider 与注释
+│   ├── ownership.test.mjs                     四种所有权结局与差异定位
+│   ├── apply-guard.test.mjs                   启动看护：放行、或失败并说明原因
+│   ├── patch-sync.test.mjs                    补丁与定义真源一致、结构符合「无删除按钮」
+│   ├── client-patch.test.mjs                  客户端补丁注入的规则
 │   ├── verify-reasoning.mjs                   思考文本取回的回归测试
 │   └── fixtures/
 │       └── stream-reasoning.sse               实测抓取的真实流
@@ -220,25 +279,31 @@ dsh-radeon-cloud-patcher/
     └── market-submission.md                   插件市场投稿说明
 ```
 
-> 插件壳只做四件事：**分发**（npm 包，可被插件市场安装）、**版本闸门**
-> （版本不匹配直接拒装）、**写入**（按键合并进 profile，可演练、带断言、自动备份）、
-> **看护**（启动时校验定义，失效则让插件启动失败）。
-> 实际的传输、思考字段解析、多轮回传、用量计量仍全部由 DSH 自带的
-> `llm-pi-ai` 承担。
+> 插件壳只做四件事：**分发**（npm 包，可被插件市场安装）、**声明**（provider 定义写在
+> 自带的补丁层里，profile 只读不改）、**版本闸门**（版本不匹配直接拒装）、
+> **看护**（启动时校验定义、判定 id 归属，不该继续就让插件启动失败并说明原因）。
+> 实际的传输、思考字段解析、多轮回传、用量计量仍全部由 DSH 自带的 `llm-pi-ai` 承担。
 
 ---
 
 ## 常用命令
 
 ```bash
-# 全量测试（合并语义、冲突防护、思考字段取回）
+# 全量测试（合并语义、所有权判定、启动看护、补丁一致性、思考字段取回）
 pnpm test
+
+# 只跑启动看护（四种所有权结局）与补丁一致性
+pnpm test:guard
+pnpm test:patch
 
 # 校验 provider 定义：结构校验 + llm-pi-ai 真实 schema 校验
 # 这是判断「字段在当前 DSH 版本里是否仍然有效」的那道校验，建议升级 DSH 后跑一次
 pnpm validate
 
-# 演练合并进 profile，打印改动与被保留的其它 provider
+# 改完 provider/radeon-cloud.yml 后，把定义同步进补丁的生成区块
+pnpm sync:patch
+
+# 补救路径：把定义按键合并进 profile（冲突时拒绝覆盖，--force 才覆盖）
 pnpm install:profile:dry
 
 # 重新实测某个模型支持的思考档位
@@ -315,16 +380,26 @@ DSH 将其归为可重试的 `SERVER`。偶发，重试即可。
 
 ### 6. 与用户自有 provider 共存
 
-provider 定义写入 profile 时采用**键级合并**：只新增或替换 `providers.radeon-cloud`
-这一个键，同一命名空间下你自己添加的 provider 原样保留。
+provider 定义由插件的 bundle 层声明，插件**只读 profile、不写 profile**。
+DSH 的非 insert 补丁是整体替换，因此你自己写的 `llm-pi-ai` config 会整份盖掉插件层的定义：
+插件启动时会判定这件事，响亮失败并给出处置，而不是让 provider 无声消失
+（判据见[归属与删除](#归属与删除)）。
 
-合并采用文本级编辑，不会重新序列化你的补丁文件，因此你写的注释、缩进风格与
-键序也不会被改动。写入前会断言：除 `radeon-cloud` 外的同级 provider 键集合一致、
-`llm-pi-ai` 之外的顶层条目逐字符未变，任一不成立即中止且不落盘。
+想与自有 provider 共存，就用补救命令做按键合并：
 
-需要注意的仍有一处：**不要另写一条 `llm-pi-ai` 的非 insert 补丁**去覆盖 config——
-那会整体替换该行，绕过上面的按键合并。若要用补丁改 `llm-pi-ai` 的其它字段，
-请只改你需要的那个字段，不要整块替换 `config`。
+```bash
+pnpm install:profile:dry   # 演练：打印改动与被保留的其它 provider
+pnpm install:profile       # 写入（自动备份，断言其余条目与同级键逐字未变）
+```
+
+合并粒度是键：只新增或替换 `providers.radeon-cloud` 这一个键，你添加的其它 provider、
+你写的注释、缩进风格与键序都原样保留（文本级编辑，不重新序列化你的文件）。
+写入前会断言：除 `radeon-cloud` 外的同级 provider 键集合一致、`llm-pi-ai` 之外的顶层条目
+逐字符未变，任一不成立即中止且不落盘；已存在不一致的同 id 定义时**拒绝覆盖**，
+需要 `--force` 才覆盖。
+
+另有一处要注意：**不要另写一条 `llm-pi-ai` 的非 insert 补丁**去改该行的其它字段——
+那会整体替换这一行，把 `providers` 一并带走。要改就只改你需要的那一个键。
 
 ---
 
@@ -334,6 +409,8 @@ provider 定义写入 profile 时采用**键级合并**：只新增或替换 `pr
 - 模型目录与档位表采集日期：**2026-10-04**
 - 收录的模型当前均为 `stability: experimental`
 - 仅覆盖 Public Free Model APIs（共享端点）；独占端点的基础 URL 每次实例重启都会变化，不在本项目范围内
+- 客户端补丁依赖 DSH 模型设置页的 DOM 结构（`aria-label` 中的 provider 路由名 + `rowTag` 类名片段）。
+  DSH 改版后它会静默失效——「自定义」标签重新出现，功能不受影响
 
 ---
 

@@ -321,6 +321,15 @@ pnpm test   # T6 场景的回归测试
 里不可解析，插件运行时取不到。该校验由 `pnpm validate` 承担，
 建议接入 CI 或升级 DSH 后运行。
 
+> **后续变更（发布前）**：上面两段已被取代，当前状态以 `README.md` 与 `AGENTS.md` 为准。
+>
+> - 交付方式改为「provider 定义写在插件自带的补丁层」：插件**仍然不写 profile**，
+>   但 profile 里出现覆盖时会启动失败并给出合并命令（`pnpm install:profile` 降为补救路径）。
+>   这样设置页不会渲染「删除」按钮，卸载插件即删除供应商；
+> - 运行时其实取得到 `llm-pi-ai` 的真实 schema（`await import('@deepseek-ai/dsh-llm-pi-ai')`
+>   由 DSH 的运行时解析供给），因此「上游字段改名」那道校验现在也在启动时做，
+>   取不到 schema 时才降级为结构校验并告警。
+
 ---
 
 ## 5. 验收标准
