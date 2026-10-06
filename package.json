@@ -45,7 +45,7 @@
       "platform": "web"
     },
     "compatibility": {
-      "dsh": ">=0.2.0-rc.1 <0.3.0-0",
+      "dsh": ">=0.2.0-rc.1",
       "dshReleases": {
         "0.2.0-rc.2": "compatible"
       }
@@ -53,7 +53,7 @@
   },
   "engines": {
     "node": ">=22",
-    "dsh": ">=0.2.0-rc.1 <0.3.0-0"
+    "dsh": ">=0.2.0-rc.1"
   },
   "files": [
     "src",
@@ -65,7 +65,8 @@
     "README.md"
   ],
   "scripts": {
-    "test": "node test/merge.test.mjs && node test/patch-text.test.mjs && node test/ownership.test.mjs && node test/apply-guard.test.mjs && node test/patch-sync.test.mjs && node test/client-patch.test.mjs && node test/verify-reasoning.mjs",
+    "test": "node test/manifest.test.mjs && node test/merge.test.mjs && node test/patch-text.test.mjs && node test/ownership.test.mjs && node test/apply-guard.test.mjs && node test/patch-sync.test.mjs && node test/client-patch.test.mjs && node test/verify-reasoning.mjs",
+    "test:manifest": "node test/manifest.test.mjs",
     "test:merge": "node test/merge.test.mjs && node test/patch-text.test.mjs && node test/ownership.test.mjs",
     "test:guard": "node test/apply-guard.test.mjs",
     "test:patch": "node test/patch-sync.test.mjs && node test/client-patch.test.mjs",
@@ -78,8 +79,8 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh-llm": ">=0.2.0-rc.1 <0.2.1-0 || >=0.2.1-0 <0.3.0-0",
-    "@deepseek-ai/dsh-llm-pi-ai": ">=0.2.0-rc.1 <0.2.1-0 || >=0.2.1-0 <0.3.0-0",
-    "@deepseek-ai/dsh-settings": ">=0.2.0-rc.1 <0.2.1-0 || >=0.2.1-0 <0.3.0-0"
+    "@deepseek-ai/dsh-llm": ">=0.2.0-rc.1",
+    "@deepseek-ai/dsh-llm-pi-ai": ">=0.2.0-rc.1",
+    "@deepseek-ai/dsh-settings": ">=0.2.0-rc.1"
   }
 }
