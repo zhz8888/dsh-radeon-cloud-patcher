@@ -569,7 +569,7 @@ node ~/.dsh/profiles/<profile>/node_modules/@zhz8888/dsh-radeon-cloud-patcher/sc
 
 ## 许可证
 
-本项目以 [MIT 许可证](LICENSE) 开源。
+本项目以 [MIT 许可证](https://github.com/zhz8888/dsh-radeon-cloud-patcher/blob/main/LICENSE) 开源。
 
 MIT 许可证允许你自由使用、复制、修改、合并、发布、分发、再许可及销售本项目的副本，
 唯一义务是在所有副本或实质性部分中保留版权声明与许可声明。
