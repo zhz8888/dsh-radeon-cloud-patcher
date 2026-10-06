@@ -76,8 +76,8 @@ Radeon 的响应体与流式分片都存在一个容易致错的形态：思考�
 
 | 项 | 要求 | 说明 |
 | --- | --- | --- |
-| DSH | `0.2.0-rc.2` | 桌面版内置的 `dsh-llm-pi-ai` 需为该版本 |
-| Node.js | `^22.19.0` 或 `>=24.0.0` | 仅运行 `scripts/` 与 `test/` 下的脚本时需要 |
+| DSH | `0.2.x`（含预发布） | 由 `peerDependencies` 声明范围，版本不匹配会被安装器拒绝 |
+| Node.js | `>=22` | 与 `package.json` 的 `engines.node` 一致；仅运行 `scripts/` 与 `test/` 下的脚本时需要 |
 | bash | 任意 | 仅 `scripts/radeon-api.sh` 需要 |
 | 操作系统 | macOS | `scripts/validate-config.mjs` 按 DSH 桌面版应用包的绝对路径加载校验用的 schema，路径为 `/Applications/DSH Desktop.app/Contents/Resources/app/node_modules`。其余脚本与系统无关 |
 
@@ -329,7 +329,7 @@ provider 定义写入 profile 时采用**键级合并**：只新增或替换 `pr
 
 ## 兼容性
 
-- 目标 DSH 版本：`0.2.0-rc.2`
+- 目标 DSH 版本：`0.2.x`（范围由 `peerDependencies` 声明）
 - 模型目录与档位表采集日期：**2026-10-04**
 - 收录的模型当前均为 `stability: experimental`
 - 仅覆盖 Public Free Model APIs（共享端点）；独占端点的基础 URL 每次实例重启都会变化，不在本项目范围内

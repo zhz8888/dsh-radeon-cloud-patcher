@@ -39,7 +39,7 @@
 | 安装方式 | 手工把 YAML 合并进 profile，重启 DSH | 插件市场一键安装 / `dsh plugin add` |
 | 界面入口 | 「设置 → 模型」中的一行，带「自定义」标记 | 侧栏独立设置页 + 用量面板 + 配额面板 |
 | 配置写入位置 | profile 的 `cordis.patch.yml` | 自身的 `Config` 命名空间 |
-| 版本约束 | **无** | `engines.dsh` + `dsh.compatibility` 声明 `0.2.0-rc.2`，不匹配**直接拒装** |
+| 版本约束 | **无** | `peerDependencies` 里的 `@deepseek-ai/dsh-*` 范围声明支持 DSH `0.2.x`，不匹配**直接拒装** |
 | 失效表现 | **静默** | 加载失败并报不兼容 |
 | 代码规模 | 147 行 YAML | 22,700 行 TypeScript（宿主 34 文件 + 客户端 36 文件） |
 | 依赖 | 无 npm 依赖 | 12 个 peerDependencies |
@@ -133,7 +133,7 @@ npm 包（可被 dshmarket 分发）
                只写 providers.radeon-cloud，其余同级键原样保留
        ② 校验：用 llm-pi-ai 的真实 schema 校验合并结果，
                不通过则启动即失败并给出可操作的诊断
-       ③ 闸门：engines.dsh / dsh.compatibility 版本约束
+       ③ 闸门：peerDependencies 里 @deepseek-ai/dsh-* 的版本范围
 ```
 
 关键点：写入走 DSH 官方 API `ctx.settings.write(ns, change)`，而不是自行改文件。该 API 的 `change`
@@ -178,7 +178,7 @@ npm 包（可被 dshmarket 分发）
 | 要求 | 落实方式 | 状态 |
 | --- | --- | --- |
 | 不破坏用户配置 | 合并粒度降到 `providers.radeon-cloud` 这一个键；文本级编辑保留用户的注释、缩进风格与键序；写入前断言其余顶层条目与同级 provider 键逐字未变，失败即中止且自动备份 | ✅ 已落实，32 项回归测试覆盖 |
-| 版本闸门 | `engines.dsh` 与 `dsh.compatibility` 声明只支持 DSH `0.2.0-rc.2`，版本不匹配时插件管理器直接拒绝安装 | ✅ 已落实 |
+| 版本闸门 | `peerDependencies` 里的 `@deepseek-ai/dsh-*` 范围声明支持 DSH `0.2.x`，版本不匹配时插件管理器直接拒绝安装（`engines.dsh` 与 `dsh.compatibility` 是同样的声明，但闸门判定只读 peer） | ✅ 已落实 |
 | 分发渠道 | 独立 npm 包，`dsh.bundle.patch` 只插入本插件行、不携带任何 `llm-pi-ai` 配置，可由插件市场或 `dsh plugin add` 安装 | ✅ 已具备发布形态 |
 | 让静默失效变成响亮失败 | 插件启动时校验 provider 定义，不通过则让插件启动失败并给出补救指引 | ✅ 已落实（结构层面） |
 | 同上，对「上游字段改名」这一类 | 需要 `llm-pi-ai` 的真实 schema，而 DSH 的包在 profile 的 `node_modules` 里不可解析，插件运行时取不到 | ⚠️ 由 `pnpm validate` 承担，建议接入 CI 或升级 DSH 后运行 |

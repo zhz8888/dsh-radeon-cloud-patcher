@@ -141,7 +141,7 @@ curl -s https://developer.amd.com.cn/radeon/api/v1/models \
   -H "Authorization: Bearer $RADEON_API_KEY" | jq '.data[] | {id, context_length, input: .architecture.input_modalities, reasoning: .providers[0].reasoning}'
 
 # 启动并观察
-pnpm dsh web --patch ./cordis.patch.yml
+pnpm dsh web --patch ./cordis.plugin.patch.yml
 ```
 
 ### 1.6 🛑 检查点 CP-0 — 配置被接受
@@ -307,9 +307,9 @@ pnpm test   # T6 场景的回归测试
 | 能力 | 实现 | 状态 |
 | --- | --- | --- |
 | 分发 | 独立 npm 包，`dsh.bundle.patch` 只插入本插件行、不携带任何 `llm-pi-ai` 配置 | ✅ |
-| 版本闸门 | `engines.dsh` + `dsh.compatibility` 声明 `0.2.0-rc.2`，不匹配直接拒装 | ✅ |
+| 版本闸门 | `peerDependencies` 里的 `@deepseek-ai/dsh-*` 范围声明支持 DSH `0.2.x`，不匹配直接拒装（`engines.dsh` 与 `dsh.compatibility` 是同样的声明，但闸门判定只读 peer） | ✅ |
 | 看护 | 插件启动时校验定义，失效则让插件启动失败并给出补救指引 | ✅ |
-| 命名一致 | 包名 / 插件注册名 / 补丁行 id / 补丁 name 四者一致 | ✅ 已校验 |
+| 命名一致 | 包名 / 插件注册名 / 补丁行 `name` 三者一致；补丁行 `id` 按 DSH 惯例取无作用域短名，不承担包名职责 | ✅ 已校验 |
 
 **明确不做的事**：插件不在启动时改写用户的 profile。provider 定义最终要落到
 用户自己维护的 `cordis.patch.yml`，插件在启动时写它存在与用户其它改动竞态的风险，
