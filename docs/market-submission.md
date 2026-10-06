@@ -105,6 +105,9 @@ for (const [name, range] of Object.entries(dependencies)) {
 
 1. **只有 `@deepseek-ai/dsh` 和 `@deepseek-ai/dsh-*` 开头的 peer 参与判定。**
    `@deepseek-ai/cordis` 会被 `continue` 跳过——给它放宽版本不会影响闸门。
+   但**它仍要写在 `peerDependencies` 里**（插件运行时确实 import 它），范围同样只有下界：
+   `>=4.0.2`。它卡的不是闸门，而是 pnpm 的 peer 解析——写死上界会在 cordis 升大版本时
+   把安装卡住，用户只能手动绕过。
 2. **判定基准是 DSH 运行时版本**，不是各个包各自的版本。
    peer 里写 cordis 的版本号，对闸门毫无作用。
 3. **不匹配是硬拒装**，不是警告：

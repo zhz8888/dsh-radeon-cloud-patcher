@@ -102,7 +102,7 @@ for (const [name, range] of Object.entries(dependencies)) {
 
 三条推论：
 
-1. 只有 `@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-*` 参与判定。**`@deepseek-ai/cordis` 被 `continue` 跳过**——放宽它不影响闸门。判定基准是 DSH 运行时版本，不是各包自身版本。
+1. 只有 `@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-*` 参与判定。**`@deepseek-ai/cordis` 被 `continue` 跳过**——它的范围不影响闸门，判定基准是 DSH 运行时版本而不是各包自身版本。它仍要留在 `peerDependencies` 里（运行时确实 import 它），并且**同样只有下界**：`>=4.0.2`。它不卡闸门，却会在 pnpm 那一步卡 peer 解析——将来 cordis 5.x 落地时不该为它再发一版插件。
 2. `engines.dsh` 与 `dsh.compatibility` 是给人看的声明，**必须与 peer 保持同步**，但它们不决定能否安装。改兼容范围时改的是 peer。
 3. 预检发生在 `pnpm install` **之前**，读的是我们自己写的 `peerDependencies`。
 
@@ -290,5 +290,5 @@ Conventional Commits：type 与 scope 用英文，subject 与 body 用中文。*
 - ❌ 在插件启动时写用户 profile（有竞态风险，故设计为只读判定 + 响亮失败）
 - ❌ 让「一致即放行」的判定退化成「有声明就失败」（设置页每保存一次都会物化一份副本，那会让插件在正常操作后起不来）
 - ❌ 统一 `id` 与 `name`（它们故意不同）
-- ❌ 放宽 `@deepseek-ai/cordis` 的版本范围（不影响闸门，只会制造 peer 噪音）
+- ❌ 给 `@deepseek-ai/cordis` 加上界（它不参与闸门，却是 pnpm 的 peer——写死上界会在 cordis 升大版本时卡住安装，和 DSH 范围当初的问题一模一样）
 - ❌ 手工编辑 `node_modules` 或 profile 里的文件（改上游要从源码改）
