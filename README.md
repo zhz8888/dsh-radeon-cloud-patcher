@@ -183,6 +183,8 @@ dsh-radeon-cloud-patcher/
 ├── LICENSE                                    MIT 许可证
 ├── package.json                               插件包清单（版本闸门、导出、脚本）
 ├── cordis.plugin.patch.yml                    bundle 补丁：只插入本插件行
+├── pnpm-workspace.yaml                        本仓库的安装期构建授权（不影响用户安装）
+├── pnpm-lock.yaml                             依赖锁文件
 ├── .gitignore
 │
 ├── provider/                                  配置本体
@@ -213,7 +215,8 @@ dsh-radeon-cloud-patcher/
     ├── feasibility-assessment.md              可行性评估与线格式差异矩阵
     ├── implementation-plan.md                 实施计划与检查点结论
     ├── live-verification.md                   真机联调实测记录
-    └── reference-commandcode-provider.md      第三方 provider 插件参考实现分析
+    ├── reference-commandcode-provider.md      第三方 provider 插件参考实现分析
+    └── market-submission.md                   插件市场投稿说明
 ```
 
 > 插件壳只做四件事：**分发**（npm 包，可被插件市场安装）、**版本闸门**
