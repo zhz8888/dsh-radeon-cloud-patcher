@@ -140,7 +140,7 @@ npm pack --dry-run --registry https://registry.npmjs.org   # 打印真会传上�
 
 `files` 白名单决定包里有什么：`src/ client/ provider/ scripts/ cordis.plugin.patch.yml
 LICENSE README.md`——**不含** `test/` 与 `docs/`，这是有意的（用户只需要能跑的代码与说明）。
-1.2.0 实测为 17 个文件。
+1.2.1 实测为 17 个文件。
 
 > 若自查时报 `EPERM … /Users/zhz/.npm/_cacache/tmp/***` 并附一句「Your cache folder contains
 > root-owned files」：**那是 npm 的误报**。本机 `~/.npm` 下没有任何 root 属主文件
@@ -174,7 +174,7 @@ npm view @zhz8888/dsh-radeon-cloud-patcher version dist.tarball --registry https
 dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher   # README 的方式一现在可用
 ```
 
-#### 四个容易踩的点
+#### 发布时容易踩的点
 
 - **scope 必须先归你**：`@zhz8888` 能发布的前提是 npm 用户名就是 `zhz8888`（与用户名同名的
   scope 自动归该账号）。若 `npm whoami` 打印的是别的名字，`publish` 会 403——先在 npm 上建
@@ -186,6 +186,10 @@ dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher   # README 
   git tag 对齐（发完可用 `git rev-parse <tag>^{commit}` 与 `npm view <包名>@<版本> gitHead` 核对）。
 - **发错号就发下一个版本，别删掉重发**：`unpublish` 后再 `publish` 复用同一个版本号是 npm
   明令禁止的；删掉某个版本只会让 `latest` 被重算成剩余版本里最大的那个，那个号也再回不来。
+- **从 tag 补发历史版本要在 `git clone` 出来的目录里发，别用 linked worktree**：npm 只在
+  `<目录>/.git/HEAD` 是**文件**时才写 `gitHead`（`@npmcli/package-json` 的 normalize 直接读这个
+  路径），而 worktree 的 `.git` 本身就是个文件——发出来的版本没有 `gitHead`。版本元数据不可变，
+  发完补不回来，核对时只能靠 tarball 内容与 tag 逐文件比对。
 - **CI 里发布**用粒度访问令牌，不要用账号口令：
 
   ```bash
@@ -199,8 +203,8 @@ npm 会把它发布时 HEAD 的提交 SHA 记在版本的 `gitHead` 里，这正
 凭据：
 
 ```bash
-npm view @zhz8888/dsh-radeon-cloud-patcher@1.2.0 gitHead --registry https://registry.npmjs.org
-git rev-parse v1.2.0^{commit}        # 两者应完全一致
+npm view @zhz8888/dsh-radeon-cloud-patcher@1.2.1 gitHead --registry https://registry.npmjs.org
+git rev-parse v1.2.1^{commit}        # 两者应完全一致
 ```
 
 ### GitHub Release tarball
