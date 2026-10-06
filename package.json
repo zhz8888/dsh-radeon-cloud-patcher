@@ -1,7 +1,7 @@
 {
   "name": "@zhz8888/dsh-radeon-cloud-patcher",
   "version": "1.1.1",
-  "description": "为 DeepSeek Harness 接入 AMD Radeon Cloud，完整支持模型思考（reasoning）功能。把 provider 定义按键合并进 profile，由 DSH 自带的 dsh-llm-pi-ai 承载，不修改 DSH 本体，也不自研适配器。",
+  "description": "\u4e3a DeepSeek Harness \u63a5\u5165 AMD Radeon Cloud\uff0c\u5b8c\u6574\u652f\u6301\u6a21\u578b\u601d\u8003\uff08reasoning\uff09\u529f\u80fd\u3002\u628a provider \u5b9a\u4e49\u6309\u952e\u5408\u5e76\u8fdb profile\uff0c\u7531 DSH \u81ea\u5e26\u7684 dsh-llm-pi-ai \u627f\u8f7d\uff0c\u4e0d\u4fee\u6539 DSH \u672c\u4f53\uff0c\u4e5f\u4e0d\u81ea\u7814\u9002\u914d\u5668\u3002",
   "keywords": [
     "amd",
     "deepseek-harness",
@@ -60,9 +60,12 @@
     "README.md"
   ],
   "scripts": {
-    "test": "node test/merge.test.mjs && node test/patch-text.test.mjs && node test/verify-reasoning.mjs",
-    "test:merge": "node test/merge.test.mjs && node test/patch-text.test.mjs",
+    "test": "node test/merge.test.mjs && node test/patch-text.test.mjs && node test/ownership.test.mjs && node test/apply-guard.test.mjs && node test/patch-sync.test.mjs && node test/verify-reasoning.mjs",
+    "test:merge": "node test/merge.test.mjs && node test/patch-text.test.mjs && node test/ownership.test.mjs",
+    "test:guard": "node test/apply-guard.test.mjs",
+    "test:patch": "node test/patch-sync.test.mjs",
     "test:reasoning": "node test/verify-reasoning.mjs",
+    "sync:patch": "node scripts/sync-bundle-patch.mjs",
     "validate": "node scripts/validate-config.mjs",
     "probe": "node scripts/probe-efforts.mjs",
     "install:profile": "node scripts/apply-to-profile.mjs",

@@ -14,16 +14,23 @@
  *   - llm-pi-ai 之外的每个顶层条目逐字符未变；
  *   - 合并后 providers 下确实出现 radeon-cloud 键。
  *
+ * 已经存在同 id 定义时**不静默覆盖**：若那份定义与真源不一致，命令直接失败并打印
+ * 第一处差异，由使用者决定是删除它还是用 --force 覆盖。这条规则与插件启动时的
+ * 看护是同一件事的两端：id 冲突要响亮，不要悄悄接管。
+ *
  * 用法:
  *   node scripts/apply-to-profile.mjs --dry-run     只演练不写盘
  *   node scripts/apply-to-profile.mjs               写入默认 profile
  *   node scripts/apply-to-profile.mjs <某个文件>    针对指定文件执行
+ *   node scripts/apply-to-profile.mjs --force       允许覆盖不一致的同 id 定义
  */
 import { readFileSync, writeFileSync, existsSync, copyFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { applyProviderBlock } from '../src/patch-text.js'
 import { loadProfile, PROVIDER_KEY, TARGET_ENTRY_ID } from '../src/index.js'
+import { loadYaml } from '../src/yaml.js'
+import { agreesWith, firstDifference } from '../src/ownership.js'
 
 /** 本脚本文件所在目录。 */
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -33,6 +40,8 @@ const ROOT = path.resolve(HERE, '..')
 const argv = process.argv.slice(2)
 /** 是否只演练不写盘。 */
 const dryRun = argv.includes('--dry-run')
+/** 是否允许覆盖不一致的同 id 定义。 */
+const force = argv.includes('--force')
 /** 第一个非选项参数，作为目标文件路径；未给出则用默认 profile。 */
 const explicit = argv.find((a) => !a.startsWith('--'))
 
@@ -47,6 +56,42 @@ if (!existsSync(TARGET)) {
 
 /** 待写入的 provider 定义，来自本项目的唯一真源。 */
 const profile = loadProfile(path.join(ROOT, 'provider', 'radeon-cloud.yml'))
+
+/**
+ * 读出目标文件里已经存在的本 provider 声明。
+ *
+ * 解析不了时返回 undefined 而不是抛错：补丁文件坏了 DSH 会先失败，
+ * 这里不必抢在它前面把真正的原因埋掉。
+ *
+ * @returns {Record<string, any>|undefined} 既有的 provider 定义
+ */
+function existingDeclaration() {
+  const { parse } = loadYaml()
+  try {
+    const parsed = parse(readFileSync(TARGET, 'utf8'))
+    if (!Array.isArray(parsed)) return undefined
+    const row = parsed
+      .filter((item) => item?.id === TARGET_ENTRY_ID && item.insert === undefined && item.config !== undefined)
+      .pop()
+    return row?.config?.providers?.[PROVIDER_KEY]
+  } catch {
+    return undefined
+  }
+}
+
+const declared = existingDeclaration()
+if (declared !== undefined && !agreesWith(profile, declared) && !force) {
+  console.error(`✗ profile 里已有一份与本插件不一致的 providers.${PROVIDER_KEY}，已拒绝覆盖：${TARGET}`)
+  console.error(`  第一处差异：${firstDifference(profile, declared)}`)
+  console.error('')
+  console.error('两种处置：')
+  console.error('  · 交给本插件管理：先手工删掉那段定义，再重跑本命令；')
+  console.error('  · 确认要覆盖它：加 --force。')
+  process.exit(1)
+}
+if (declared !== undefined && !agreesWith(profile, declared) && force) {
+  console.log(`⚠ 既有定义与本插件不一致（${firstDifference(profile, declared)}），按 --force 覆盖`)
+}
 
 /** 目标文件切分后的全部行。 */
 const before = readFileSync(TARGET, 'utf8').split('\n')

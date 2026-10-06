@@ -1,11 +1,22 @@
-# 本插件的 bundle 补丁层。
+# 本插件的 bundle 补丁层。它做两件事，顺序无关但都必须在同一个文件里。
 #
-# 这里只插入本插件自己那一行，**不携带 llm-pi-ai 的任何配置**。
+# 1. 把 provider 定义声明进 llm-pi-ai 的 config（见下面的生成区块）。
 #
-# 原因：DSH 的非 insert 补丁是整体替换而不是合并。若在这里写入
-# llm-pi-ai 的 config，用户在该命名空间下自行添加的其它 provider
-# 会被一并抹掉。provider 定义改由插件在启动时按键合并写入，
-# 只新增或覆盖 providers.radeon-cloud 这一个键。
+#    设置页的「删除」按钮只在「该 provider 路径存在于用户层、且不存在于
+#    base 层」时渲染（dsh-client-ui-settings-models 的 removable 判据）。
+#    定义写在 profile 的 cordis.patch.yml（用户层）就必然带删除按钮；
+#    写在本插件的 bundle 层（也就是这里）则永远没有——而且卸载插件
+#    就等于删除供应商，因为 profile 里没有任何副本。
+#
+#    DSH 的非 insert 补丁是整体替换而不是合并：本段 config 会替换掉它
+#    之前所有层给 llm-pi-ai 的 config。实测 @deepseek-ai/dsh-base 与
+#    @deepseek-ai/dsh-web-app 给 llm-pi-ai 的 config 是空的，因此不会丢
+#    东西；而 profile 自己的 cordis.patch.yml 排在所有 bundle 层之后，
+#    用户一旦在那里写过 llm-pi-ai 的 config，本段就会被整份盖掉。
+#    src/index.js 在启动时静态检查这种情况，响亮失败并给出处置命令，
+#    而不是让 provider 无声消失。
+#
+# 2. 插入本插件自己那一行：启动校验、所有权与 id 冲突检测。
 #
 # `id` 是本条目在 profile 里的唯一键，按 DSH 现有惯例取不带作用域的短名
 # （对照 llm-pi-ai、llm-commandcode），它不承担包名职责。
@@ -14,13 +25,168 @@
 # （scoped）名链接，裸写包名会解析失败。必须加引号——YAML 中以 @ 开头的
 # 标量会被当作指令符解析。
 
+- id: llm-pi-ai
+  config:
+    providers:
+      radeon-cloud:
+        # >>> 生成区块：provider/radeon-cloud.yml 的副本，由 scripts/sync-bundle-patch.mjs 维护
+        # Radeon Cloud provider 定义 —— 本项目的唯一真源。
+        #
+        # 插件安装与手工安装两条路径都从这里取值，因此不存在第二份副本。
+        # 本文件只描述 providers.radeon-cloud 这一个键，不含 llm-pi-ai 的其余内容，
+        # 因此写入时只新增或覆盖 radeon-cloud 这一个键，用户自行添加的其它 provider 不受影响。
+        #
+        # 下面的模型列表与 reasoningEfforts 档位表均来自对线上端点的逐项实测。
+        # 模型目录接口不返回档位信息，因此 AMD 新增或下架模型后，
+        # 需重新实测并同步本文件，否则选择器里会出现不生效的档位或已失效的模型。
+
+        # 与 ~/.dsh/.credentials.yaml 中的 ref 名一致；模型设置页按字面名找密钥状态
+        apiKeyEnv: RADEON_CLOUD_API_KEY
+
+        # Radeon 不在 pi-ai 的内置目录中，因此必须显式声明协议
+        api: openai-completions
+
+        baseURL: https://developer.amd.com.cn/radeon/api/v1
+        displayName: Radeon Cloud
+
+        # 默认思考档位。medium 在全部 8 个已收录模型上均被接受。
+        reasoning: medium
+
+        # Radeon 的思考与答案共用同一个 max_tokens 预算，预算不足时 content
+        # 会变成空字符串。实测 reasoning_effort=low 时，一个「详细解释」类
+        # 问题在 max_tokens=400 下思考就把预算吃光、content 为空；因此这里
+        # 取 32768，给思考留出充足余量。max_tokens 是上限而非计费项，
+        # 实际按产出计费，调高不增加成本。
+        defaultMaxTokens: 32768
+
+        # Radeon 的流式超时语义是「两个分片之间的间隔」而非总时长，
+        # 对应 DSH 的 streamIdleTimeoutMs。
+        streamIdleTimeoutMs: 600000
+
+        # Radeon 触发每分钟限流时 Retry-After 为 60 秒，退避上限必须 ≥ 该值，
+        # 否则重试会在限流窗口结束前全部失败。
+        retryPolicy:
+          mode: normal
+          maxRetries: 5
+          backoff:
+            initialDelayMs: 1000
+            maxDelayMs: 120000
+            jitterRatio: 0.2
+
+        # ── 协议兼容开关 ──────────────────────────────────────────────
+        compat:
+          # ★ 关键：DSH 默认对普通 OpenAI 兼容端点发送 developer 角色，
+          #   而 8 个模型中有 5 个直接拒绝（unknown role: developer）。
+          supportsDeveloperRole: false
+          supportsReasoningEffort: true
+          # Radeon 的网关只按白名单转发字段，thinking_budget /
+          # thinking_token_budget / thinking_budget_tokens 三个字段
+          # 全部被静默丢弃，因此不能开启思考预算。
+          supportsThinkingTokenBudget: false
+          maxTokensField: max_tokens
+          thinkingFormat: openai
+
+        # ── 模型目录 ──────────────────────────────────────────────────
+        # 共收录 8 个对话模型。目录接口里还有 MinerU2.5-Pro，但它的
+        # context_length 为 0、tools 为 false，走的是独立的 /v1/ocr
+        # 文档识别端点而非对话接口，故不收录。
+        models:
+          # ── DeepSeek 系：7 档全接受，`none` 可关闭思考 ──
+          - id: DeepSeek-V4.1-Flash
+            name: DeepSeek-V4.1-Flash
+            contextWindow: 1048576
+            input: [text, image]
+            reasoningEfforts:
+              off: none
+              minimal: minimal
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
+
+          - id: DeepSeek-V4-Flash
+            name: DeepSeek-V4-Flash
+            contextWindow: 1048576
+            input: [text]
+            reasoningEfforts:
+              off: none
+              minimal: minimal
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
+
+          - id: DeepSeek-V4-Flash-Vision-Exp
+            name: DeepSeek-V4-Flash-Vision-Exp
+            contextWindow: 1048576
+            input: [text, image]
+            reasoningEfforts:
+              off: none
+              minimal: minimal
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
+
+          - id: MiMo-V2.6-Flash
+            name: MiMo-V2.6-Flash
+            contextWindow: 1048576
+            input: [text, image]
+            reasoningEfforts:
+              off: none
+              minimal: minimal
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
+
+          # ── Qwen 系：无 minimal/max/high，仅 none/low/medium/xhigh ──
+          # 这两个模型唯一能关闭思考的方式是 none；传入 high 会返回 400。
+          - id: Qwen3.8-27B
+            name: Qwen3.8-27B
+            contextWindow: 262144
+            input: [text, image]
+            reasoningEfforts:
+              off: none
+              low: low
+              medium: medium
+              xhigh: xhigh
+
+          - id: Qwen3.8-Flash-Next
+            name: Qwen3.8-Flash-Next
+            contextWindow: 262144
+            input: [text, image]
+            reasoningEfforts:
+              off: none
+              low: low
+              medium: medium
+              xhigh: xhigh
+
+          # ── GLM 系：不接受 none/minimal/xhigh/max ──
+          # 不声明 off 键：该模型没有「关闭思考」的档位。
+          - id: GLM-5.3-Flash
+            name: GLM-5.3-Flash
+            contextWindow: 262144
+            input: [text]
+            reasoningEfforts:
+              low: low
+              medium: medium
+              high: high
+
+          # MiniCPM5-2B 接受 low/medium/high，但不返回分离的思考内容
+          # （思考字段恒为空）。给出档位控件会误导用户，
+          # 故显式声明为非推理模型。
+          - id: MiniCPM5-2B
+            name: MiniCPM5-2B
+            contextWindow: 131072
+            input: [text]
+            reasoningEfforts: false
+        # <<< 生成区块结束
+
 - insert:
     - id: radeon-cloud-patcher
       name: "@zhz8888/dsh-radeon-cloud-patcher"
-      config:
-        # 自动写入 provider 定义。关闭后插件只做启动校验与看护，
-        # 不再改动 profile 文件，适合由使用者自行维护配置的场景。
-        autoProvision: true
-        # 启动时用 llm-pi-ai 的真实 schema 校验 provider 定义，
-        # 不通过则直接让插件启动失败，避免配置失效却无人察觉。
-        validateOnBoot: true
