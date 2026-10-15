@@ -75,6 +75,36 @@ window.__ModuleLoader__.load({ id: '@zhz8888/dsh-radeon-cloud-patcher', factory:
 - `package.json` 里 `exports["./client"]` 指向它，`dsh.client.platform` 声明为 `web`；
 - 客户端补丁不做 DOM 写入，只注入一条样式规则，判据是 DSH 自己拼的 `aria-label`（含 provider 路由名，与语言无关）。它依赖 DSH 的 DOM 结构，改版后可能静默失效——这是已知代价，写进了 README 的「归属与删除」。
 
+### 「插件」页显示名称来自包内 locale，缺了会静默回落成包名
+
+插件页那一行的标题由 `dsh-app-boot` 的 `readPluginMeta` 决定，判据写在
+`dsh-client-ui-plugin-manager` 里：
+
+```js
+title: pkg.meta?.title === void 0 ? pkg.name : resolveText(pkg.meta.title)
+```
+
+也就是说：**读不到元信息就把整个 npm 包名原样显示出来**，全程没有任何报错。
+本插件用 `locale/en.json` + `locale/zh.json` 提供 `meta.title` / `meta.description`，
+前端再按当前语言取值（DSH 只内置 `zh` 与 `en` 两种，见 `dsh-client-locale` 的 `LOCALE_IDS`）。
+
+三条硬要求，缺任何一条都会静默回落，只有肉眼能发现：
+
+- **`locale/en.json` 必须存在**：`readPluginMeta` 只在 en 能解析时才去扫同目录的其它
+  语言文件，所以 zh 写得再好，没有 en 就完全不生效（不只是「英文回落到包名」）；
+- **`exports` 里必须有 `./locale/*.json` 模式**：DSH 走的是 Node 的真实模块解析
+  （`loader.resolveSync`），缺了模式会抛 `ERR_PACKAGE_PATH_NOT_EXPORTED`，
+  而 `optionalResourcePath` 把这个错**当成「没有元信息」吞掉**；
+- **`files` 里必须有 `locale`**：漏了则本地开发全绿，发到 npm 的包里却没有这些文件。
+
+同目录下的每个 `*.json` 都会被当作语言文件读取，因此**不要往 `locale/` 里放别的 JSON**
+（文件名必须是语言 id，否则整个元信息读取抛错）；`meta.title`、`meta.description`
+若存在就必须是非空字符串。
+
+`test/plugin-meta.test.mjs` 钉住上述全部约束：解析那一层走 Node 真实的 `exports`
+（包自引用），与 DSH 是同一条路径；语言取值那一层是按 `localizedText` / `resolveText`
+语义复刻的模拟。改动 `locale/` 或 `exports` 后跑 `pnpm test:meta`。
+
 ### 补丁文件的 id 与 name 故意不同
 
 ```yaml
@@ -137,8 +167,9 @@ dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher \
 ## 常用命令
 
 ```bash
-pnpm test                 # 全量：清单不变式 / 合并语义 / 文本级合并 / 所有权判定 / 启动看护 / 补丁一致性 / 思考取回
+pnpm test                 # 全量：清单不变式 / 插件页元信息 / 合并语义 / 文本级合并 / 所有权判定 / 启动看护 / 补丁一致性 / 思考取回
 pnpm test:manifest        # 三处 DSH 版本声明一致、无上界、清单指向的文件都存在
+pnpm test:meta            # 插件页显示名称：locale 文件形状、exports 解析、files 白名单
 pnpm test:merge           # 合并语义 + 文本级合并 + 所有权判定（离线、不碰 DSH 运行时）
 pnpm test:guard           # 启动看护的四种归属结局 + dynamic 跳过
 pnpm test:patch           # 补丁与定义真源一致 + 客户端补丁注入的规则
@@ -178,6 +209,7 @@ src/patch-text.js  文本级编辑：按行定位与替换，以保住用户注�
 src/validate.js    provider 定义的结构校验（不依赖 DSH）
 src/yaml.js        定位 YAML 解析器，含回退路径
 client/client.js   客户端补丁：隐藏本行的「自定义」标签（DSH 客户端模块格式，非 ESM）
+locale/            en.json / zh.json —— 「插件」页显示名称与一句话简介（见下方约束）
 provider/          radeon-cloud.yml —— 定义的唯一真源，副本由 sync-bundle-patch.mjs 生成
 scripts/           sync-bundle-patch.mjs（生成副本）、apply-to-profile.mjs（补救合并）、
                    validate-config.mjs、probe-efforts.mjs、radeon-api.sh
@@ -328,5 +360,6 @@ Conventional Commits：type 与 scope 用英文，subject 与 body 用中文。*
 - ❌ 在插件启动时写用户 profile（有竞态风险，故设计为只读判定 + 响亮失败）
 - ❌ 让「一致即放行」的判定退化成「有声明就失败」（设置页每保存一次都会物化一份副本，那会让插件在正常操作后起不来）
 - ❌ 统一 `id` 与 `name`（它们故意不同）
+- ❌ 删掉 `exports` 里的 `./locale/*.json`、或往 `locale/` 放非语言文件的 JSON（插件页会静默回落成 npm 包名，没有任何报错）
 - ❌ 给 `@deepseek-ai/cordis` 加上界（它不参与闸门，却是 pnpm 的 peer——写死上界会在 cordis 升大版本时卡住安装，和 DSH 范围当初的问题一模一样）
 - ❌ 手工编辑 `node_modules` 或 profile 里的文件（改上游要从源码改）

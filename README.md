@@ -30,6 +30,8 @@
    命令行执行
    `dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher`。
    装不上（pnpm 报 404）就改用[安装](#安装)里的方式三，从源码装同一个包。
+   装好后插件列表里显示的条目名是 **Radeon Cloud**（中文界面为「Radeon Cloud 提供方」），
+   而不是上面那串包名——名称取自包内的 `locale/`，见[项目结构](#项目结构)。
 2. **重启 DSH** —— 定义写在补丁层的 config 行里，插件管理器对这类变更只会给出
    `restart-required`，不会在运行中生效。重启后 provider 就位，没有其它后置步骤。
 3. **填密钥** —— 左下角「账号菜单 → 设置 → 模型」，找到 **Radeon Cloud** 一行，
@@ -387,6 +389,10 @@ dsh-radeon-cloud-patcher/
 ├── client/                                    客户端补丁
 │   └── client.js                              隐藏本行的「自定义」标签（DSH 客户端模块格式，非 ESM）
 │
+├── locale/                                    插件页显示名称（DSH 按包内 locale 读取，缺了就回落成 npm 包名）
+│   ├── en.json                                英文：{"meta":{"title":"Radeon Cloud",…}}
+│   └── zh.json                                中文：{"meta":{"title":"Radeon Cloud 提供方",…}}
+│
 ├── src/                                       插件实现（薄壳，不含 provider 逻辑）
 │   ├── index.js                               插件入口：启动校验、所有权判定、收尾核验
 │   ├── ownership.js                           所有权判定的纯函数（四种归属结局 + dynamic 哨兵、差异定位）
@@ -403,8 +409,9 @@ dsh-radeon-cloud-patcher/
 │   └── radeon-api.sh                          API 调用助手（密钥取自环境变量或凭据存储）
 │
 ├── test/                                      离线测试（自研 runner，无测试框架）
-│   ├── *.test.mjs                             清单不变式、合并语义、文本级编辑、
-│   │                                          所有权判定、启动看护、补丁与客户端一致性
+│   ├── *.test.mjs                             清单不变式、插件页元信息、合并语义、
+│   │                                          文本级编辑、所有权判定、启动看护、
+│   │                                          补丁与客户端一致性
 │   ├── verify-reasoning.mjs                   思考文本取回的回归测试
 │   └── fixtures/stream-reasoning.sse          实测抓取的真实流
 │
@@ -422,12 +429,15 @@ dsh-radeon-cloud-patcher/
 ## 常用命令
 
 ```bash
-# 全量测试（合并语义、所有权判定、启动看护、补丁一致性、思考字段取回）
+# 全量测试（清单不变式、插件页元信息、合并语义、所有权判定、启动看护、补丁一致性、思考字段取回）
 pnpm test
 
 # 只跑启动看护（四种归属结局 + dynamic 跳过）与补丁一致性
 pnpm test:guard
 pnpm test:patch
+
+# 只跑插件页显示名称的契约（locale 文件 + exports 模式 + files 白名单）
+pnpm test:meta
 
 # 校验 provider 定义：结构校验 + llm-pi-ai 真实 schema 校验
 # 这是判断「字段在当前 DSH 版本里是否仍然有效」的那道校验，建议升级 DSH 后跑一次

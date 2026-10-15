@@ -34,6 +34,7 @@
     "./merge": "./src/merge.js",
     "./provider": "./provider/radeon-cloud.yml",
     "./client": "./client/client.js",
+    "./locale/*.json": "./locale/*.json",
     "./package.json": "./package.json"
   },
   "dsh": {
@@ -59,14 +60,16 @@
     "src",
     "client",
     "provider",
+    "locale",
     "scripts",
     "cordis.plugin.patch.yml",
     "LICENSE",
     "README.md"
   ],
   "scripts": {
-    "test": "node test/manifest.test.mjs && node test/merge.test.mjs && node test/patch-text.test.mjs && node test/ownership.test.mjs && node test/apply-guard.test.mjs && node test/patch-sync.test.mjs && node test/client-patch.test.mjs && node test/verify-reasoning.mjs",
+    "test": "node test/manifest.test.mjs && node test/plugin-meta.test.mjs && node test/merge.test.mjs && node test/patch-text.test.mjs && node test/ownership.test.mjs && node test/apply-guard.test.mjs && node test/patch-sync.test.mjs && node test/client-patch.test.mjs && node test/verify-reasoning.mjs",
     "test:manifest": "node test/manifest.test.mjs",
+    "test:meta": "node test/plugin-meta.test.mjs",
     "test:merge": "node test/merge.test.mjs && node test/patch-text.test.mjs && node test/ownership.test.mjs",
     "test:guard": "node test/apply-guard.test.mjs",
     "test:patch": "node test/patch-sync.test.mjs && node test/client-patch.test.mjs",

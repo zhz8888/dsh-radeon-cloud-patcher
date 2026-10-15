@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Radeon Cloud",
+    "description": "Unofficial Radeon Cloud provider: full reasoning-effort support, declared in the plugin's own patch layer with no profile writes."
+  }
+}

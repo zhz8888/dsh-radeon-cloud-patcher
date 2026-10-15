@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Radeon Cloud 提供方",
+    "description": "非官方 Radeon Cloud 提供方：完整支持模型思考档位；provider 定义由插件自带的补丁层声明，不写用户 profile。"
+  }
+}
