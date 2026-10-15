@@ -36,7 +36,7 @@
    点「编辑」，在「API 密钥」里粘贴密钥，点「保存」。
 
 装好之后：那一行右侧出现**绿点**（悬停显示「API 密钥已配置」）；回到对话，点输入框下方的
-模型选择器，Radeon 的 8 个模型会出现在列表里；选中模型后再选「推理等级」就是思考档位。
+模型选择器，Radeon 的 10 个模型会出现在列表里；选中模型后再选「推理等级」就是思考档位。
 
 **怎么确认真的装好了** —— 三个现象同时成立，说明插件与它的补丁层都到位：
 
@@ -109,7 +109,7 @@ Radeon 的响应体与流式分片都存在一个容易致错的形态：思考�
 
 ### 其他
 
-- 8 个对话模型全部可选，思考档位按模型独立声明
+- 10 个对话模型全部可选，思考档位按模型独立声明
 - 视觉模型支持图片输入
 - 限流退避遵循服务端 `Retry-After`
 - 附带离线校验、回归测试与档位实测工具
@@ -282,13 +282,15 @@ RADEON_CLOUD_API_KEY=rc-你的密钥 dsh --profile <profile>
 
 对话输入框下方点模型选择器 → 选 Radeon Cloud 的模型 → 再选「推理等级」，
 那就是思考档位。档位按模型逐个声明（见[可用模型](#可用模型)）：
-GLM 不接受 `none`，因此没有关闭档位；`MiniCPM5-2B` 不是推理模型，
-不会出现档位下拉。选了服务端不接受的档位是**硬失败**（400 / 422），不会静默降级。
+GLM-5.3-Flash 与 MiniCPM-V-4.7-1B 不接受 `none`，因此没有关闭档位；
+`MiniCPM5-2B` 不是推理模型，不会出现档位下拉。
+选了服务端不接受的档位是**硬失败**（400 / 422），不会静默降级。
 
 ### 3. 图片输入
 
 支持图片：DeepSeek-V4.1-Flash、DeepSeek-V4-Flash-Vision-Exp、MiMo-V2.6-Flash、
-Qwen3.8-27B、Qwen3.8-Flash-Next。只收文本：DeepSeek-V4-Flash、GLM-5.3-Flash、MiniCPM5-2B。
+MiniCPM-V-4.7-1B、MiniCPM-V-4.7-35B-A3B、Qwen3.8-27B、Qwen3.8-Flash-Next。
+只收文本：DeepSeek-V4-Flash、GLM-5.3-Flash、MiniCPM5-2B。
 
 ### 4. 升级与卸载
 
@@ -448,7 +450,7 @@ pnpm probe --only Qwen3.8-27B
 
 ## 可用模型
 
-> 采集日期：**2026-10-04**
+> 采集日期：**2026-10-16**
 
 | 模型 | 上下文 | 图片 | 思考档位 |
 | --- | --- | --- | --- |
@@ -456,13 +458,16 @@ pnpm probe --only Qwen3.8-27B
 | DeepSeek-V4-Flash | 1,048,576 | ❌ | off/minimal/low/medium/high/xhigh/max |
 | DeepSeek-V4-Flash-Vision-Exp | 1,048,576 | ✅ | off/minimal/low/medium/high/xhigh/max |
 | MiMo-V2.6-Flash | 1,048,576 | ✅ | off/minimal/low/medium/high/xhigh/max |
+| MiniCPM-V-4.7-35B-A3B | 262,144 | ✅ | off/minimal/low/medium/high/xhigh/max |
 | Qwen3.8-27B | 262,144 | ✅ | off/low/medium/xhigh |
 | Qwen3.8-Flash-Next | 262,144 | ✅ | off/low/medium/xhigh |
 | GLM-5.3-Flash | 262,144 | ❌ | low/medium/high |
+| MiniCPM-V-4.7-1B | 262,144 | ✅ | low/medium/high |
 | MiniCPM5-2B | 131,072 | ❌ | （不返回分离思考，故不提供档位） |
 
 `off` 表示发送 `reasoning_effort: "none"` 关闭思考。
-**GLM-5.3-Flash 不接受 `none`**，因此没有关闭档位；Qwen 系靠 `none` 关闭，而**不传档位时仍会思考**（AMD 服务端行为）。
+**GLM-5.3-Flash 与 MiniCPM-V-4.7-1B 不接受 `none`**，因此没有关闭档位；Qwen 系靠 `none` 关闭，而**不传档位时仍会思考**（AMD 服务端行为）。
+`MiniCPM-V-4.7-35B-A3B` 与 `MiniCPM-V-4.7-1B` 同属 MiniCPM 系，但档位表并不相同——**不要按模型名的相近程度推断档位**。
 
 > **档位表不在 API 里**（`GET /v1/models` 不返回该信息），只能实测。模型上下架会导致此表过期，
 > 请用 `pnpm probe` 复测后再更新 `provider/radeon-cloud.yml`。
@@ -496,8 +501,10 @@ DSH 的 `dsh-llm-pi-ai` 会对此抛 `UNSUPPORTED_OPTION`，属于响亮失败�
 
 ### 3. 部分模型不接受 `developer` 角色
 
-DSH 默认对 OpenAI 兼容端点使用 `developer` 承载系统提示词，8 个模型中有 5 个会直接报
-`unknown role: developer`。已通过 `compat.supportsDeveloperRole: false` 关闭。
+DSH 默认对 OpenAI 兼容端点使用 `developer` 承载系统提示词，10 个模型中有 6 个会拒绝，
+且报错文本分两种：GLM-5.3-Flash、MiniCPM5-2B、MiniCPM-V-4.7-1B 报 `422 unknown role: developer`；
+Qwen 系两个与 MiniCPM-V-4.7-35B-A3B 报 `400 Unexpected message role.`。
+已通过 `compat.supportsDeveloperRole: false` 关闭，改用 `system` 角色。
 
 ### 4. 档位被拒是硬失败
 
@@ -532,7 +539,7 @@ node ~/.dsh/profiles/<profile>/node_modules/@zhz8888/dsh-radeon-cloud-patcher/sc
 
 ```
 【写入】 ~/.dsh/profiles/desktop/cordis.patch.yml
-  新增 providers.radeon-cloud（8 个模型）
+  新增 providers.radeon-cloud（10 个模型）
   保留的其它 provider：my-corp-proxy, another-one
   顶层条目 12 个，增减 0 个
 ```
