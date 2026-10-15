@@ -9,11 +9,14 @@
  *
  * 探测手法：对每个「模型 × 档位」组合发一次 max_tokens 为 1 的极小请求，
  * 只看 HTTP 状态码，200 即视为接受，不关心回复内容；这样单次探测的产出
- * token 成本可忽略。按每分钟 20 次的账户限流节流到约 19 次/分钟。
+ * token 成本可忽略。
  *
- * 注意：429 表示触发了限流，不代表该档位被拒绝，遇到时应单独复测确认。
+ * 只有 200 才是「接受」；400 与 422 才是「拒绝」。429（限流）与 5xx
+ * （上游偶发故障，README 记录过 504 被包装成 500）都不构成结论，本脚本会
+ * 自动重测，避免把「测不出来」写成档位表里的一个 ✗——那会让用户在选择器里
+ * 少一个本来可用的档位，且全程不产生任何报错。
  *
- * 用法: node scripts/probe-efforts.mjs [--only ModelId] [--tiers a,b,c]
+ * 用法: node scripts/probe-efforts.mjs [--only ModelId] [--tiers a,b,c] [--interval 毫秒]
  */
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -48,8 +51,22 @@ const only = argOf('--only')
 /** 只探测这些档位，逗号分隔；未指定时用 ALL_TIERS。 */
 const tiers = (argOf('--tiers') ?? ALL_TIERS.join(',')).split(',')
 
-/** 相邻两次请求之间的最小间隔，取 3100 毫秒约为每分钟 19 次。 */
-const MIN_INTERVAL_MS = 3100
+/** 相邻两次请求之间的默认最小间隔。
+ *
+ * 网关的账户限流是每分钟 20 次（响应头 x-ratelimit-limit-user-rpm）。原先取
+ * 3100 毫秒看似合规（≈19.4 次/分），但节流判据是「距上次请求满 3.1 秒」，
+ * 第 21 次请求会落在与第 1 次同一个滚动窗口内，实测必踩 429。取 4500 毫秒
+ * 把网关这一层躲开；上游自身仍会偶发限流，那由下面的重测兜住。 */
+const DEFAULT_INTERVAL_MS = 4500
+/** 相邻两次请求之间的最小间隔，可用 --interval 覆盖。 */
+const MIN_INTERVAL_MS = Number(argOf('--interval') ?? DEFAULT_INTERVAL_MS)
+/** 命中 429 后的冷却时长：服务端 Retry-After 为 60 秒，多留几秒余量。 */
+const RATE_LIMIT_COOLDOWN_MS = 65000
+/** 命中 5xx 后的重试间隔。上游偶发故障，等几秒再问通常就好了。 */
+const UPSTREAM_RETRY_DELAY_MS = 5000
+/** 单个「模型 × 档位」组合命中可重试错误后最多重测的次数。 */
+const MAX_RETRIES = 2
+
 /** 上一次请求发出的时间戳，用于计算需要等待多久。 */
 let lastAt = 0
 
@@ -73,6 +90,30 @@ async function throttle() {
  * @returns {Promise<{status: number, error?: string}>} HTTP 状态码；取不到时为 -1
  */
 async function call(model, effort) {
+  for (let attempt = 0; ; attempt += 1) {
+    const res = await once(model, effort)
+    // 429 是限流，5xx 是上游故障，两者都测不出该档位的真实结论。直接返回会把
+    // 「没测到」写成「不接受」，进而从档位表里删掉一个本来可用的档位，所以必须重测。
+    const delay = res.status === 429
+      ? RATE_LIMIT_COOLDOWN_MS
+      : res.status >= 500 ? UPSTREAM_RETRY_DELAY_MS : 0
+    if (delay === 0 || attempt >= MAX_RETRIES) return res
+    process.stderr.write(
+      `  ${model.padEnd(30)} ${effort.padEnd(9)} ${res.status} 非结论，`
+      + `${delay / 1000} 秒后重测（第 ${attempt + 1} 次）\n`,
+    )
+    await new Promise((r) => setTimeout(r, delay))
+  }
+}
+
+/**
+ * 发起一次探测请求，不做限流重试。
+ *
+ * @param {string} model 模型 id
+ * @param {string} effort reasoning_effort 取值
+ * @returns {Promise<{status: number, error?: string}>} HTTP 状态码；取不到时为 -1
+ */
+async function once(model, effort) {
   await throttle()
   // max_tokens 压到 1，让这次请求只为确认档位是否被接受，不产生实际产出。
   const body = JSON.stringify({
@@ -118,7 +159,8 @@ for (const model of models) {
   for (const effort of tiers) {
     const { status } = await call(model, effort)
     result[model][effort] = status
-    // 200 为接受；400 与 422 为档位不被接受；其余（429 等）需人工复测。
+    // 200 为接受；400 与 422 为档位不被接受；冷却重测后仍非这三者的
+    // （例如持续 429、5xx）说明这次没测出结论，须人工复测后手工入表。
     const mark = status === 200 ? '✓' : status === 400 ? '✗400' : status === 422 ? '✗422' : `?${status}`
     process.stderr.write(`  ${model.padEnd(30)} ${effort.padEnd(9)} ${mark}\n`)
   }
