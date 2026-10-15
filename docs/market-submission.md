@@ -133,14 +133,15 @@ npm config set @zhz8888:registry https://registry.npmjs.org
 **① 发布前自查**（仓库根目录）：
 
 ```bash
-pnpm test && pnpm validate   # 112 项检查 + 用 llm-pi-ai 真实 schema 校验定义
+pnpm test && pnpm validate   # 123 项检查 + 用 llm-pi-ai 真实 schema 校验定义
 pnpm test:manifest           # 三处 DSH 版本声明一致、files 白名单覆盖所有清单指向的文件
 npm pack --dry-run --registry https://registry.npmjs.org   # 打印真会传上去的文件清单
 ```
 
-`files` 白名单决定包里有什么：`src/ client/ provider/ scripts/ cordis.plugin.patch.yml
-LICENSE README.md`——**不含** `test/` 与 `docs/`，这是有意的（用户只需要能跑的代码与说明）。
-1.2.1 实测为 17 个文件。
+`files` 白名单决定包里有什么：`src/ client/ provider/ locale/ scripts/
+cordis.plugin.patch.yml LICENSE README.md`——**不含** `test/` 与 `docs/`，这是有意的
+（用户只需要能跑的代码与说明）。1.3.0 实测为 19 个文件（1.2.1 为 17 个，多出的两个是
+`locale/` 下的显示名称）。
 
 > 若自查时报 `EPERM … /Users/zhz/.npm/_cacache/tmp/***` 并附一句「Your cache folder contains
 > root-owned files」：**那是 npm 的误报**。本机 `~/.npm` 下没有任何 root 属主文件
