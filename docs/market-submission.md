@@ -172,7 +172,7 @@ npm publish --registry https://registry.npmjs.org --access public --otp=123456
 
 ```bash
 npm view @zhz8888/dsh-radeon-cloud-patcher version dist.tarball --registry https://registry.npmjs.org
-dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher   # README 的方式一现在可用
+dsh plugin --profile <profile> add @zhz8888/dsh-radeon-cloud-patcher   # README「安装」一节这条命令现在可用
 ```
 
 #### 发布时容易踩的点
