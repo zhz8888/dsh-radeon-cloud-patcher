@@ -9,7 +9,7 @@
  */
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   PROVIDER_KEY,
   TARGET_ENTRY_ID,
@@ -35,12 +35,30 @@ let parseYaml = () => {
   throw new Error('YAML 解析器未注入')
 }
 
-/** 载入 DSH 应用包内的 yaml 模块并注入解析函数。 */
+/** 候选的 yaml 解析器位置。
+ *
+ * 与 src/yaml.js 用同一套规则：先用 DSH_MODULES，再退到 macOS 桌面版的应用包路径。
+ * 这里曾经只写死应用包路径，于是 Windows 上无论怎么设 DSH_MODULES 都解析不到，
+ * `pnpm test` 直接 ERR_MODULE_NOT_FOUND。
+ */
+const YAML_CANDIDATES = [
+  process.env.DSH_MODULES
+    ? pathToFileURL(path.join(process.env.DSH_MODULES, 'yaml', 'dist', 'index.js')).href
+    : undefined,
+  pathToFileURL('/Applications/DSH Desktop.app/Contents/Resources/app/node_modules/yaml/dist/index.js').href,
+].filter(Boolean)
+
+/** 依次尝试候选位置，载入 DSH 应用包内的 yaml 模块并注入解析函数。 */
 async function loadYaml() {
-  const { parse } = await import(
-    '/Applications/DSH Desktop.app/Contents/Resources/app/node_modules/yaml/dist/index.js'
-  )
-  parseYaml = parse
+  for (const url of YAML_CANDIDATES) {
+    try {
+      parseYaml = (await import(url)).parse
+      return
+    } catch {
+      // 换下一个候选位置
+    }
+  }
+  throw new Error('找不到 yaml 解析器：请用 DSH_MODULES 指向一个包含 yaml 的 node_modules 目录')
 }
 
 /** 构造一份与用户环境同构的补丁条目列表。 */
