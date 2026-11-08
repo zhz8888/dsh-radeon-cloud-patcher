@@ -66,11 +66,11 @@ DSH 兼容范围 **`>=0.2.0-rc.1`，只有下界、没有上界**，三处声明
 
 ### 2. 选模型与思考档位
 
-输入框下方的模型选择器里选 Radeon 的模型，再选「推理等级」就是思考档位（按模型逐个声明，见[可用模型](#可用模型)）。GLM-5.3-Flash 与 MiniCPM-V-4.7-1B 不接受 `none`，没有关闭档位；`MiniCPM5-2B` 非推理模型，不出现档位下拉。选了服务端不接受的档位是**硬失败**（400/422），不会静默降级。
+输入框下方的模型选择器里选 Radeon 的模型，再选「推理等级」就是思考档位（按模型逐个声明，见[可用模型](#可用模型)）。MiniCPM-V-4.7-1B 与 MiniCPM-V-4.7-35B-A3B 不接受 `none`，没有关闭档位；`MiniCPM5-2B` 非推理模型，不出现档位下拉。选了服务端不接受的档位是**硬失败**（400/422），不会静默降级。
 
 ### 3. 图片输入
 
-支持图片：DeepSeek-V4.1-Flash、DeepSeek-V4-Flash-Vision-Exp、MiMo-V2.6-Flash、MiniCPM-V-4.7-1B、MiniCPM-V-4.7-35B-A3B、Qwen3.8-27B、Qwen3.8-Flash-Next。只收文本：DeepSeek-V4-Flash、GLM-5.3-Flash、MiniCPM5-2B。
+支持图片：DeepSeek-V4.1-Flash、Gemma-4-31B-IT、MiMo-V2.6-Flash、MiniCPM-V-4.7-1B、MiniCPM-V-4.7-35B-A3B、Qwen3.8-27B、Qwen3.8-Flash-Next。只收文本：DeepSeek-V4-Flash、GLM-5.3-Flash、MiniCPM5-2B。
 
 ### 4. 升级与卸载
 
@@ -98,30 +98,30 @@ dsh plugin --profile <profile> remove @zhz8888/dsh-radeon-cloud-patcher      # �
 
 ## 可用模型
 
-> 采集日期：**2026-10-16**
+> 采集日期：**2026-11-09**
 
 | 模型 | 上下文 | 图片 | 思考档位 |
 | --- | --- | --- | --- |
 | DeepSeek-V4.1-Flash | 1,048,576 | ✅ | off/minimal/low/medium/high/xhigh/max |
 | DeepSeek-V4-Flash | 1,048,576 | ❌ | off/minimal/low/medium/high/xhigh/max |
-| DeepSeek-V4-Flash-Vision-Exp | 1,048,576 | ✅ | off/minimal/low/medium/high/xhigh/max |
 | MiMo-V2.6-Flash | 1,048,576 | ✅ | off/minimal/low/medium/high/xhigh/max |
-| MiniCPM-V-4.7-35B-A3B | 262,144 | ✅ | off/minimal/low/medium/high/xhigh/max |
+| Gemma-4-31B-IT | 262,144 | ✅ | off/minimal/low/medium/high/xhigh/max |
+| GLM-5.3-Flash | 262,144 | ❌ | off/minimal/low/medium/high/xhigh/max |
+| MiniCPM-V-4.7-1B | 262,144 | ✅ | low/medium/high |
+| MiniCPM-V-4.7-35B-A3B | 262,144 | ✅ | low/medium/high |
 | Qwen3.8-27B | 262,144 | ✅ | off/low/medium/xhigh |
 | Qwen3.8-Flash-Next | 262,144 | ✅ | off/low/medium/xhigh |
-| GLM-5.3-Flash | 262,144 | ❌ | low/medium/high |
-| MiniCPM-V-4.7-1B | 262,144 | ✅ | low/medium/high |
 | MiniCPM5-2B | 131,072 | ❌ | （不返回分离思考，故不提供档位） |
 
-`off` 表示发送 `reasoning_effort: "none"` 关闭思考；Qwen 系靠 `none` 关闭，**不传档位时仍会思考**（AMD 服务端行为）。`MiniCPM-V-4.7-35B-A3B` 与 `MiniCPM-V-4.7-1B` 同属 MiniCPM 系但档位表不同——**不要按模型名的相近程度推断档位**。
+`off` 表示发送 `reasoning_effort: "none"` 关闭思考；Qwen 系靠 `none` 关闭，**不传档位时仍会思考**（AMD 服务端行为）。档位表与厂商、模型名的相近程度无关：同为 MiniCPM 系，`MiniCPM-V-4.7-1B` 与 `MiniCPM-V-4.7-35B-A3B` 只接受 `low/medium/high`，`MiniCPM5-2B` 接受三档却不返回分离思考——**只能逐个实测**。
 
-> 档位表不在 API 里（`GET /v1/models` 不返回该信息），只能实测；模型上下架会让此表过期，用 `pnpm probe` 复测后再更新 `provider/radeon-cloud.yml`。`MinerU2.5-Pro` 未收录——它走独立的 `/v1/ocr` 端点，不是对话模型。
+> 档位表不在 API 里（`GET /v1/models` 不返回该信息），只能实测；模型上下架会让此表过期，用 `pnpm probe` 复测后再更新 `provider/radeon-cloud.yml`。目录里的 `Clef`、`d3`、`d3-flash` 与 `OmniVoice` 未收录——前三者的输出模态是 `decision`、上下文为 0，后者输出音频，都不是对话模型。
 
 ## 已知限制
 
 1. **思考与回答共用同一个 token 预算**：Radeon 的 `max_tokens` 同时约束思考和回答，预算不足时**回答会变成空字符串**（实测 `effort=low`、`max_tokens` ≤ 400 时 `finish_reason=length` 而 content 全空）。配置里 `defaultMaxTokens` 已设为 `32768` 留足余量；`max_tokens` 是上限而非计费项，调高不增加成本。仍偶发空回答就调低该会话档位或临时改用 `off`。
 2. **`stop` 不可用**：网关按白名单重建请求体，`stop` 被静默丢弃，`dsh-llm-pi-ai` 会抛 `UNSUPPORTED_OPTION`（响亮失败，比静默失效好）。
-3. **部分模型不接受 `developer` 角色**：10 个模型中有 6 个拒绝（GLM-5.3-Flash、MiniCPM5-2B、MiniCPM-V-4.7-1B 报 422；Qwen 系两个与 MiniCPM-V-4.7-35B-A3B 报 400），已用 `compat.supportsDeveloperRole: false` 改走 `system`。
+3. **部分模型不接受 `developer` 角色**：10 个模型中有 5 个拒绝（MiniCPM5-2B、MiniCPM-V-4.7-1B、MiniCPM-V-4.7-35B-A3B 报 422；Qwen 系两个报 400），已用 `compat.supportsDeveloperRole: false` 改走 `system`。
 4. **非法档位是硬失败**（400/422），不会自动降级；档位表来自实测，新增模型请先复测。
 5. **上游偶发故障**：出现过 `504` 被包装成 HTTP `500` + `code: upstream_error`，DSH 归为可重试的 `SERVER`，重试即可。
 

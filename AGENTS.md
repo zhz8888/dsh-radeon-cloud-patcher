@@ -242,10 +242,11 @@ pnpm probe                        # 全量实测
 改完定义后跑 `pnpm validate` 确认 schema 合法，**再跑 `pnpm sync:patch` 把定义同步进
 `cordis.plugin.patch.yml` 的生成区块**（忘了这一步，装上去的还是旧定义；
 `pnpm test:patch` 会拦住这种漂移）。**不要凭模型名推测档位**——
-GLM 不接受 `none`（所以它没有关闭档位；Qwen 系反过来，靠 `none` 关闭，不传档位时仍会思考）、某些模型不返回分离思考，这些都是实测结论
+哪些模型接受 `none`（能关闭思考）、哪些不接受、哪些根本不返回分离思考，全是实测结论
 （`MiniCPM5-2B` 的 `reasoningEfforts: false` 即表示非推理模型）。
-连同一厂商、名字相近的模型也不能互推：`MiniCPM-V-4.7-35B-A3B` 全档接受，
-而 `MiniCPM-V-4.7-1B` 只接受 `low/medium/high`。
+连同一厂商、名字相近的模型也不能互推：`MiniCPM-V-4.7-35B-A3B` 与
+`MiniCPM-V-4.7-1B` 都只接受 `low/medium/high`，而同系的 `MiniCPM5-2B` 接受三档
+却不返回分离思考。
 
 只有 `200` 是「接受」，`400`/`422` 是「拒绝」。**`429` 与 `5xx` 都不是档位结论**——
 前者是限流，后者是上游偶发故障（`504` 被包装成 `500`）。`probe-efforts.mjs` 会自动重测
