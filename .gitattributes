@@ -1,0 +1,10 @@
+# 行尾策略：仓库内文本一律按 LF 存储与检出；只有 PowerShell 脚本按 CRLF 检出。
+#
+# 这不是风格洁癖：scripts/radeon-api.sh 一旦带 CRLF，bash 会把 \r 当成 token
+# 的一部分，直接报 "syntax error near unexpected token"；反过来 .ps1 用 CRLF
+# 是 Windows 上 PowerShell 脚本的惯例，记事本等编辑器也不会显示成一行。
+#
+# 规则格式：text=auto 让 Git 自行判定二进制文件，二进制不参与行尾转换。
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.sh  text eol=lf

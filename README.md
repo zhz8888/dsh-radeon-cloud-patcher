@@ -83,7 +83,7 @@ dsh plugin --profile <profile> remove @zhz8888/dsh-radeon-cloud-patcher      # �
 
 ### 5. 仓库脚本的环境变量
 
-只影响 `scripts/`（`radeon-api.sh`、`probe-efforts.mjs`），与插件运行时无关：
+只影响 `scripts/`（`radeon-api.sh` / `radeon-api.ps1`、`probe-efforts.mjs`），与插件运行时无关：
 
 | 变量 | 作用 | 默认值 |
 | --- | --- | --- |
@@ -92,7 +92,9 @@ dsh plugin --profile <profile> remove @zhz8888/dsh-radeon-cloud-patcher      # �
 | `RADEON_BASE` | 端点基础 URL，可指向独占端点 | `https://developer.amd.com.cn/radeon/api/v1` |
 | `DSH_HOME` | DSH 数据目录，凭据文件据此定位 | `~/.dsh` |
 
-> 密钥只存在于进程变量与 curl 请求头，不写盘、不打印；但 shell 历史仍会留下 `export RADEON_API_KEY=...`，请自行注意。
+> 密钥只存在于进程变量与请求头，不写盘、不打印；但 shell 历史仍会留下 `export RADEON_API_KEY=...`（PowerShell 里是 `$env:RADEON_API_KEY = '...'`），请自行注意。
+>
+> 两个助手脚本的参数、环境变量与输出契约完全相同：POSIX / Git Bash 用 `./scripts/radeon-api.sh`，Windows 原生用 `./scripts/radeon-api.ps1`（需 PowerShell 7）。`pnpm probe` 在 Windows 上会自动走 `.ps1`。
 
 ## 可用模型
 
@@ -162,14 +164,15 @@ pnpm install:profile       # 写入（自动备份，冲突时拒绝覆盖，--f
 
 ## 开发
 
-零运行时依赖，源码只用 Node 内置模块；测试为自研 runner，无测试框架。运行 `scripts/` 与 `test/` 需要 Node `>=22`；`pnpm validate` 需本机有可用的 DSH 安装（macOS 下按桌面版应用包路径加载 schema，可用 `DSH_MODULES` 覆盖）。
+零运行时依赖，源码只用 Node 内置模块；测试为自研 runner，无测试框架。运行 `scripts/` 与 `test/` 需要 Node `>=22`；`pnpm validate` 需本机有可用的 DSH 安装（macOS 下按桌面版应用包路径加载 schema，可用 `DSH_MODULES` 覆盖）。要用 PowerShell 版助手或 `pnpm test:ps1` 的行为层，另需 PowerShell 7（`pwsh`）。
 
 ```bash
 pnpm test                 # 全量离线测试（清单不变式 / 插件元信息 / 合并语义 / 所有权判定 / 启动看护 / 补丁一致性 / 思考取回）
 pnpm validate             # 用 llm-pi-ai 真实 schema 校验 provider 定义——升级 DSH 后必跑
 pnpm sync:patch           # 改完 provider/radeon-cloud.yml 后同步进补丁，否则定义漂移
 pnpm probe --only <模型>  # 重新实测思考档位
-./scripts/radeon-api.sh GET /models   # 拉取实时模型目录
+./scripts/radeon-api.sh GET /models   # 拉取实时模型目录（POSIX / Git Bash）
+./scripts/radeon-api.ps1 GET /models  # 同上，PowerShell 7
 ```
 
 架构约束、补丁层设计理由与发版流程见 [`AGENTS.md`](AGENTS.md) 与 [`docs/market-submission.md`](docs/market-submission.md)。

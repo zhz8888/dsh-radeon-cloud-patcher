@@ -27,8 +27,15 @@ import { fileURLToPath } from 'node:url'
 const execFileAsync = promisify(execFile)
 /** 本脚本文件所在目录。 */
 const HERE = path.dirname(fileURLToPath(import.meta.url))
-/** 发起请求的可执行助手脚本路径。 */
-const HELPER = path.join(HERE, 'radeon-api.sh')
+/** 发起请求的助手脚本。
+ *
+ * Windows 上没有 bash，改用同目录的 PowerShell 7 版本：两个脚本遵守同一份
+ * 输出契约（响应体走 stdout，状态码走 stderr 的 ---HTTP <code>--- 标记），
+ * 所以上面对 stderr 的解析逻辑不用分平台。
+ */
+const HELPER = process.platform === 'win32'
+  ? { cmd: 'pwsh', prefix: ['-NoProfile', '-File', path.join(HERE, 'radeon-api.ps1')] }
+  : { cmd: path.join(HERE, 'radeon-api.sh'), prefix: [] }
 
 /** 待探测的候选档位全集。 */
 const ALL_TIERS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
@@ -124,12 +131,21 @@ async function once(model, effort) {
     stream: false,
   })
   try {
-    const { stderr } = await execFileAsync(HELPER, ['POST', '/chat/completions', body], {
-      maxBuffer: 8 * 1024 * 1024,
-    })
+    const { stderr } = await execFileAsync(
+      HELPER.cmd,
+      [...HELPER.prefix, 'POST', '/chat/completions', body],
+      { maxBuffer: 8 * 1024 * 1024 },
+    )
     const code = /---HTTP (\d+)---/.exec(stderr)?.[1]
     return { status: Number(code) }
   } catch (err) {
+    // pwsh 没装时 execFile 直接 ENOENT，此后每个组合都会得到 -1。
+    // 与其把「没测到」写进档位表，不如当场停下并说明怎么装。
+    if (err.code === 'ENOENT') {
+      console.error(`✗ 找不到 ${HELPER.cmd}。Windows 上本脚本通过 scripts/radeon-api.ps1 发请求，`
+        + '请先安装 PowerShell 7，或改用 Git Bash 直接调用 scripts/radeon-api.sh。')
+      process.exit(1)
+    }
     const code = /---HTTP (\d+)---/.exec(err.stderr ?? '')?.[1]
     return { status: code ? Number(code) : -1, error: (err.stderr ?? err.message ?? '').slice(0, 200) }
   }
@@ -137,7 +153,7 @@ async function once(model, effort) {
 
 /** 模型目录中 data 数组的原始条目。 */
 const catalog = await new Promise((resolve, reject) => {
-  execFileAsync(HELPER, ['GET', '/models'], { maxBuffer: 8 * 1024 * 1024 })
+  execFileAsync(HELPER.cmd, [...HELPER.prefix, 'GET', '/models'], { maxBuffer: 8 * 1024 * 1024 })
     .then(({ stdout }) => resolve(JSON.parse(stdout).data ?? []))
     .catch(reject)
 })

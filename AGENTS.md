@@ -174,6 +174,7 @@ pnpm test:merge           # 合并语义 + 文本级合并 + 所有权判定（�
 pnpm test:guard           # 启动看护的四种归属结局 + dynamic 跳过
 pnpm test:patch           # 补丁与定义真源一致 + 客户端补丁注入的规则
 pnpm test:reasoning       # 仅思考字段取回
+pnpm test:ps1             # PowerShell 7 助手与 bash 助手的对等性（含行为层，需 pwsh）
 pnpm sync:patch           # 把 provider/radeon-cloud.yml 同步进补丁的生成区块
 pnpm validate             # 用 llm-pi-ai 真实 schema 校验 provider 定义
 pnpm probe                # 实测各模型思考档位（需密钥，会打真实 API）
@@ -212,7 +213,8 @@ client/client.js   客户端补丁：隐藏本行的「自定义」标签（DSH 
 locale/            en.json / zh.json —— 「插件」页显示名称与一句话简介（见下方约束）
 provider/          radeon-cloud.yml —— 定义的唯一真源，副本由 sync-bundle-patch.mjs 生成
 scripts/           sync-bundle-patch.mjs（生成副本）、apply-to-profile.mjs（补救合并）、
-                   validate-config.mjs、probe-efforts.mjs、radeon-api.sh
+                   validate-config.mjs、probe-efforts.mjs、
+                   radeon-api.sh / radeon-api.ps1（同一份输出契约的两个平台版本）
 ```
 
 `patch-text.js` 的存在理由值得单说：DSH 补丁是整体替换，走序列化再写回会丢掉
@@ -228,7 +230,14 @@ scripts/           sync-bundle-patch.mjs（生成副本）、apply-to-profile.mj
 pnpm probe --only Qwen3.8-27B   # 单模型实测
 pnpm probe                        # 全量实测
 ./scripts/radeon-api.sh GET /models   # 只拉模型目录，不含档位
+./scripts/radeon-api.ps1 GET /models  # 同上，PowerShell 7（Windows 上没有 bash 时用）
 ```
+
+两个助手脚本遵守同一份输出契约：响应体走标准输出，状态码走标准错误的
+`---HTTP <code>---` 标记，非 2xx 也照常返回（退出码 0）。`probe-efforts.mjs`
+在 Windows 上会自动改用 `.ps1`，因此**改其中一个必须同步改另一个**；
+`pnpm test:ps1` 会断言两个脚本的环境变量、默认端点与标记一致，并在两种实现
+都能跑时逐字比对协议输出。
 
 改完定义后跑 `pnpm validate` 确认 schema 合法，**再跑 `pnpm sync:patch` 把定义同步进
 `cordis.plugin.patch.yml` 的生成区块**（忘了这一步，装上去的还是旧定义；
@@ -302,6 +311,7 @@ pnpm v10+ 默认拦截依赖的安装期构建脚本，命中时以 `ERR_PNPM_IG
 - 不引入抽象层：`src/` 与 `client/` 合计约 950 行，薄壳的价值在于可读完
 - 错误信息要可操作——告诉用户下一步做什么，而不是描述失败原因
 - 新增依赖、新增外部服务、新增平台特定逻辑，都需要先质疑其必要性
+- **行尾由 `.gitattributes` 固化**：文本文件一律 LF，只有 `*.ps1` 检出为 CRLF。这不是风格洁癖——`.sh` 一旦带 CRLF，bash 会把 `\r` 当成 token 的一部分直接报语法错误；新增文件不要手工改行尾，也不要在编辑器里关掉自动识别
 - 客户端补丁只做「隐藏一个标签」这种量级的事；一旦需要在浏览器里做逻辑，
   先回头质疑需求本身，而不是把 `client/client.js` 养大
 
