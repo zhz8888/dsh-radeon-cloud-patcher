@@ -141,7 +141,7 @@ npm pack --dry-run --registry https://registry.npmjs.org   # 打印真会传上�
 `files` 白名单决定包里有什么：`src/ client/ provider/ locale/ scripts/
 cordis.plugin.patch.yml LICENSE README.md`——**不含** `test/` 与 `docs/`，这是有意的
 （用户只需要能跑的代码与说明）。当前实测 20 个文件：1.2.1 是 17 个，1.3.0 的 19 个多出
-`locale/` 下两个显示名称文件，本轮又多了 `scripts/radeon-api.ps1`。
+`locale/` 下两个显示名称文件，1.4.0 又多了 `scripts/radeon-api.ps1`。
 
 > 若自查时报 `EPERM … /Users/zhz/.npm/_cacache/tmp/***` 并附一句「Your cache folder contains
 > root-owned files」：**那是 npm 的误报**。本机 `~/.npm` 下没有任何 root 属主文件
